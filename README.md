@@ -8,7 +8,8 @@
 文件组织顺序
 .   --> 当前文件夹
   opt.py. --> 优化逻辑主体设计
-  enzyme --> ENZYME框架
+  enzymeAutoGrad --> ENZYME框架
+  
   
 
 
