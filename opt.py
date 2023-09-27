@@ -1,0 +1,2 @@
+class opt():
+    pass
