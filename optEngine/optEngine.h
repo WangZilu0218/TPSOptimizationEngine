@@ -1,0 +1,7 @@
+class optEngine()
+{
+protected:
+
+public:
+
+}
