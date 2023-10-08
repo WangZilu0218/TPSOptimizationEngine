@@ -9,6 +9,9 @@
 #include "math.h"
 #include "cstring"
 
+// #define NDEBUG
+#include <assert.h>
+
 #ifdef DEBUG
 # define DEBUG_PRINT(x) printf x
 #else

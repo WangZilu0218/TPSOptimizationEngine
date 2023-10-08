@@ -1,9 +1,10 @@
 #ifndef CSC_H
 #define CSC_H
 
-#include "global.h"
 #include <iostream>
 #include <fstream>
+
+#include "common.cuh"
 
 class CSC
 {
@@ -11,14 +12,14 @@ private:
     /* data */
     bool copyGPUFlag, nnzDataFlag;
 public:
-    int m;
+    int m; // matrix size m rows by n columns
     int n;
-    int nnz;
+    int nnz; // number of non zero elements
     float *nzdata; // non zero value
     int *indices; // row indices for CSC format
     int *indptr; // number of elements befor column j for CSC format
     
-    int *m_d;
+    int *m_d; // _d means variable in GPU
     int *n_d;
     float *nzdata_d;
     int *indices_d;
