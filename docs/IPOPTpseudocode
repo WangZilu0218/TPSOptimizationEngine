@@ -1,0 +1,31 @@
+IPOPT C++ source code: https://github.com/coin-or/Ipopt
+
+1. Initialize:
+    - Set the initial guess for the solution x0.
+    - Set the tolerance threshold ε.
+    - Set the maximum number of iterations N.
+
+2. Set the iteration counter k = 0.
+3. Set the initial barrier parameter μ > 0.
+4. Set the initial penalty parameter σ > 0.
+
+5. Repeat until convergence or maximum iterations reached:
+    a. Increment the iteration counter: k = k + 1.
+    b. Solve the primal-dual system of equations:
+        - Compute the Hessian matrix Hk and the gradient vector gk at the current solution xk.
+        - Compute the Jacobian matrix Jk and the constraint vector ck at the current solution xk.
+        - Construct the KKT system of equations: [Hk + σ * Jk^T * Jk, Jk^T; Jk, -μ * I] * [Δx; Δλ] = [-gk - Jk^T * λk; -ck].
+        - Solve the KKT system of equations for the search direction [Δx; Δλ].
+c. Update the solution estimate:
+    - Compute the step size α using a line search method.
+    - Update the solution estimate: xk+1 = xk + α * Δx.
+d. Update the Lagrange multipliers:
+    - Update the Lagrange multipliers: λk+1 = λk + α * Δλ.
+e. Update the barrier and penalty parameters:
+    - Update the barrier parameter: μ = μ * β, where β is a parameter between 0 and 1.
+    - Update the penalty parameter: σ = σ * β, where β is a parameter between 0 and 1.
+f. Check for convergence:
+    - If the primal and dual residuals are below the tolerance ε, stop the iterations.
+    - If k >= N, stop the iterations.
+
+6. Return the final solution estimate xk+1.
