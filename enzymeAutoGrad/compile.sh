@@ -1,0 +1,7 @@
+clang++ doseLoss.cu -fplugin=/home/admin/Enzyme-main/enzyme/build/Enzyme/ClangEnzyme-16.so -O2 --cuda-gpu-arch=sm_70 -lcudart -L/usr/local/cuda/lib64 -fPIC -shared -o DoseLoss.so
+clang++ DVHLoss.cu -fplugin=/home/admin/Enzyme-main/enzyme/build/Enzyme/ClangEnzyme-16.so -O2 --cuda-gpu-arch=sm_70 -lcudart -L/usr/local/cuda/lib64 -fPIC -shared -o DVHLoss.so
+clang++ gEUDLoss.cu -fplugin=/home/admin/Enzyme-main/enzyme/build/Enzyme/ClangEnzyme-16.so -O2 --cuda-gpu-arch=sm_70 -lcudart -L/usr/local/cuda/lib64 -fPIC -shared -o EUDLoss.so
+clang++ uniformDoseLoss.cu -fplugin=/home/admin/Enzyme-main/enzyme/build/Enzyme/ClangEnzyme-16.so -O2 --cuda-gpu-arch=sm_70 -lcudart -L/usr/local/cuda/lib64 -fPIC -shared -o UniformDoseLoss.so
+clang++ doseLoss.cu -fplugin=/home/admin/Enzyme-main/enzyme/build/Enzyme/ClangEnzyme-16.so -O2 --cuda-gpu-arch=sm_70 -lcudart -L/usr/local/cuda/lib64 -o DoseLoss.out
+clang++ DVHLoss.cu -DUSE_THRUST -I/home/admin/optimize/enzymeAutoGrad/thrust -I/home/admin/optimize/enzymeAutoGrad/thrust/dependencies/libcudacxx -I/home/admin/optimize/enzymeAutoGrad/thrust/dependencies/cub -I/home/admin/optimize/enzymeAutoGrad/thrust/dependencies/libcudacxx/include -Xclang -fcuda-allow-variadic-functions -fplugin=/home/admin/Enzyme-main/enzyme/build/Enzyme/ClangEnzyme-16.so -O2 --cuda-gpu-arch=sm_70 -lcudart -L/usr/local/cuda/lib64  -o DVHLoss.out
+clang++ gEUDLoss.cu -fplugin=/home/admin/Enzyme-main/enzyme/build/Enzyme/ClangEnzyme-16.so -O2 --cuda-gpu-arch=sm_70 -lcudart -L/usr/local/cuda/lib64 -o EUDLoss.out
