@@ -2,3 +2,7 @@
 	path = thrust
 	url = http://10.0.255.1:10001/algorithmGroup/thrust.git
 	branch = main
+[submodule "pybind11"]
+	path = pybind11
+	url = http://10.0.255.1:10001/algorithmGroup/pybind11.git
+	branch = master
