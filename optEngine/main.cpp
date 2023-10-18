@@ -4,7 +4,7 @@
 #include "pybind11/include/pybind11/numpy.h"
 #include "pybind11/include/pybind11/stl.h"
 
-void cudaOptEngine(pybind11::array_t<float> dvh) // target on one region and multiple objectives/constraints first as of 20231008
+void cudaOptEngine(pybind11::array_t<float> dvh) // target on no-overlapping region and multiple objectives/constraints first as of 20231008
 {
 
 }
