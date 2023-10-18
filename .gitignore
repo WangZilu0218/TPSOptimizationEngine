@@ -28,6 +28,7 @@ build
 *.pch
 
 # Compiled Dynamic libraries
+!enzymeAutoGrad/*.so
 *.so
 *.dylib
 *.dll
