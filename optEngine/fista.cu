@@ -1,12 +1,13 @@
 //
 // Created by 王子路 on 2023/10/17.
 //
-#include "common.h"
+#include "cuda_runtime_api.h"
+#include "options.h"
 float __device__ projL1(float U, float lambda, bool pos) {
   if (pos)
-	return __maxf(0, U - lambda);
+	return fmaxf(0, U - lambda);
   else
-	return __maxf(0, U - lambda) + __minf(0, U + lambda);
+	return fmaxf(0, U - lambda) + fminf(0, U + lambda);
 }
 
 void __global__ gKernel(float *p_v, float *p_sum, float lambda, int size) {
@@ -15,15 +16,15 @@ void __global__ gKernel(float *p_v, float *p_sum, float lambda, int size) {
   float __shared__ cache[BLOCKDIM];
   float temp = 0.0f;
   while (idx < size) {
-	temp += __absf(p_v[idx] * lambda);
+	temp += fabsf(p_v[idx] * lambda);
 	idx += gridDim.x * blockDim.x;
   }
   cache[cacheId] = temp;
   __syncthreads();
   int i = blockDim.x / 2;
   while (i != 0) {
-	if (chacheId < i)
-	  cache[chacheId] += cache[chacheId + i];
+	if (cacheId < i)
+	  cache[cacheId] += cache[cacheId + i];
 	__syncthreads();
 	i /= 2;
   }
@@ -76,7 +77,7 @@ void __global__ subVecKernel(float *p_v1, float *p_v2, float *p_result, int size
   int idx = blockDim.x * blockIdx.x + threadIdx.x;
   while(idx < size) {
 	p_result[idx] = p_v1[idx] * p_v2[idx];
-	idx += gridDim.x * blockDim.x
+	idx += gridDim.x * blockDim.x;
   }
 }
 

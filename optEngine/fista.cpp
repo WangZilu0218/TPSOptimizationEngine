@@ -3,33 +3,49 @@
 //
 
 #include "fista.h"
+#include "helper_cuda.h"
 #include "cusparse.h"
+#include "enzymeAutoGrad/loss.h"
+fista::fista(const opts &op,
+			 const CSC &csc,
+			 float *pWeights,
+			 float *nzdata1,
+			 int *indices1,
+			 int *indptr1,
+			 int nrow,
+			 int ncol,
+			 int nz)
+	: op(op), csc(csc) {
 
-fista::fista(const opts &op, int *pCscColInd, int *pRowInd, float *pValue, float *pWeights, int nnZ, int spotsNum)
-	: op(op), nnz(nnZ), numSpots(spotsNum) {
-  cudaMalloc((void **)&dCscColInd, sizeof(int)   * (numSpots + 1));
-  cudaMalloc((void **)&dRowInd,    sizeof(int)   * nnZ);
-  cudaMalloc((void **)&dValues,    sizeof(float) * nnZ);
+  weights.resize(csc.n);
+  memcpy(weights.data(), pWeights, sizeof(float) * csc.n);
+  this->csc.initFromMemory(nzdata1, indices1, indptr1, nrow, ncol, nz);
 
-  cudaMemcpy(dCscColInd, pCscColInd, sizeof(int) * (numSpots + 1), cudaMemcpyHostToDevice);
-  cudaMemcpy(dRowInd,    pRowInd,    sizeof(int) * nnz, cudaMemcpyHostToDevice);
-  cudaMemcpy(dValues,    pValue,     sizeof(float) * nnz, cudaMemcpyHostToDevice);
+  checkCudaErrors(cudaMalloc((void **)&dXOld, sizeof(float) * csc.n));
+  checkCudaErrors(cudaMalloc((void **)&dXNew, sizeof(float) * csc.n));
+  checkCudaErrors(cudaMalloc((void **)&dYOld, sizeof(float) * csc.n));
+  checkCudaErrors(cudaMalloc((void **)&dYNew, sizeof(float) * csc.n));
 
-  cudaMalloc((void **)&dXOld, sizeof(float) * spotsNum);
-  cudaMalloc((void **)&dXNew, sizeof(float) * spotsNum);
-  cudaMalloc((void **)&dYOld, sizeof(float) * spotsNum);
-  cudaMalloc((void **)&dYNew, sizeof(float) * spotsNum);
+  checkCudaErrors(cudaMalloc((void **)&dDose, sizeof(float) * csc.m));
+  checkCudaErrors(cudaMalloc((void **)&dDoseGrad, sizeof(float) * csc.m));
+  checkCudaErrors(cudaMalloc((void **)&dLoss, sizeof(float) * GRIDDIM));
 
-  cudaMemcpy(dXOld, pWeights, sizeof(float) * spotsNum, cudaMemcpyHostToDevice);
-  cudaMemcpy(dYOld, pWeights, sizeof(float) * spotsNum, cudaMemcpyHostToDevice);
+  checkCudaErrors(cudaMemcpy(dXOld, pWeights, sizeof(float) * csc.n, cudaMemcpyHostToDevice));
+  checkCudaErrors(cudaMemcpy(dYOld, pWeights, sizeof(float) * csc.n, cudaMemcpyHostToDevice));
 }
 
+float fista::calc_F(float *pX) {
+  calDoseLoss(dDose, dDoseGrad, dLoss, 100, csc.m, 1);
+}
+
+void fista::step() {
+
+}
+
+
 fista::~fista() {
-  cudaFree(dCscColInd);
-  cudaFree(dRowInd);
-  cudaFree(dValues);
-  cudaFree(dXOld);
-  cudaFree(dXNew);
-  cudaFree(dYOld);
-  cudaFree(dYNew);
+  checkCudaErrors(cudaFree(dXOld));
+  checkCudaErrors(cudaFree(dXNew));
+  checkCudaErrors(cudaFree(dYOld));
+  checkCudaErrors(cudaFree(dYNew));
 }
