@@ -2,8 +2,8 @@
 // Created by 王子路 on 2023/10/17.
 //
 
-#ifndef OPTIMIZE_OPTENGINE_COMMON_H_
-#define OPTIMIZE_OPTENGINE_COMMON_H_
+#ifndef OPTIMIZE_OPTENGINE_OPTIONS_H_
+#define OPTIMIZE_OPTENGINE_OPTIONS_H_
 #include <string>
 #define BLOCKDIM 256
 #define GRIDDIM  128
@@ -14,6 +14,5 @@ typedef struct {
   int    eta = 2;
   bool   pos = false;
   float  lambda = 0.01;
-  string regul = "l1";
 } opts;
-#endif //OPTIMIZE_OPTENGINE_COMMON_H_
+#endif //OPTIMIZE_OPTENGINE_OPTIONS_H_

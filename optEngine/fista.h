@@ -8,7 +8,8 @@
 #include "options.h"
 #include "common/csc.h"
 using namespace std;
-
+#define BLOCKDIM 256
+#define GRIDDIM  128
 class fista {
  public:
   fista();
