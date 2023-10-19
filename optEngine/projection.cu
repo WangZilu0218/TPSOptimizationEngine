@@ -1,7 +1,7 @@
 //
 // Created by 王子路 on 2023/10/17.
 //
-#include "common.h"
+#include "options.h"
 float __device__ projL1(float U, float lambda, bool pos) {
   if (pos)
 	return __maxf(0, U - lambda);
