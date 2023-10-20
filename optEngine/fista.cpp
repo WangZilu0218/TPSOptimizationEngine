@@ -39,9 +39,12 @@ float fista::calc_F(float *pX) {
 }
 
 void fista::step() {
-
+  cusparseHandle_t    handle = NULL;
+  cudaStream_t        stream = NULL;
+  cusparseMatDescr_t  descrC = NULL;
+  cusparseStatus_t    status = CUSPARSE_STATUS_SUCCESS;
+  cusparseDirection_t dirA   = CUSPARSE_DIRECTION_COLUMN;
 }
-
 
 fista::~fista() {
   checkCudaErrors(cudaFree(dXOld));
