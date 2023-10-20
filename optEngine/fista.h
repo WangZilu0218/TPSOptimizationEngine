@@ -36,7 +36,6 @@ class fista {
   float *dLoss;
  public:
   vector<float> weights;
-
 };
 
 #endif //OPTIMIZE_OPTENGINE_FISTA_H_
