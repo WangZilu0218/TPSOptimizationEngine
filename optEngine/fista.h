@@ -8,8 +8,6 @@
 #include "options.h"
 #include "common/csc.h"
 using namespace std;
-#define BLOCKDIM 256
-#define GRIDDIM  128
 class fista {
  public:
   fista();
@@ -20,6 +18,8 @@ class fista {
   float calc_F(float *);
   void optimize();
   void step();
+  void forwardMV();
+  void backwardMV();
  private:
   const opts op;
   CSC csc;
@@ -30,6 +30,10 @@ class fista {
   float *dXNew;
   float *dYOld;
   float *dYNew;
+
+  int   *bsrRowPtrC;
+  int   *bsrColIndC;
+  float *bsrValC;
  private:
   float *dDose;
   float *dDoseGrad;

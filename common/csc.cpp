@@ -1,106 +1,258 @@
 #include "csc.h"
+CSC::CSC() {
+  m = 0;
+  n = 0;
+  nnz = 0;
+  nzdata = nullptr;
+  indices = nullptr;
+  indptr = nullptr;
 
-CSC::CSC()
-{
-    m = 0;
-    n = 0;
-    nnz = 0;
-    nzdata = nullptr;
-    indices = nullptr;
-    indptr = nullptr;
+  copyGPUFlag = false;
+  nnzDataFlag = false;
 
-    copyGPUFlag = false;
-    nnzDataFlag = false;
+  checkCudaErrors(cudaMalloc((void **)&y_forward_d, sizeof(float) * m));
+  checkCudaErrors(cudaMalloc((void **)&y_backward_d, sizeof(float) * n));
+
+  //init cusparse context
+  checkCudaErrors(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
+
+  status = cusparseCreate(&handle);
+  assert(CUSPARSE_STATUS_SUCCESS == status);
+
+  status = cusparseSetStream(handle, stream);
+  assert(CUSPARSE_STATUS_SUCCESS == status);
+
+  status = cusparseCreateMatDescr(&descrC);
+  assert(CUSPARSE_STATUS_SUCCESS == status);
+
+  cusparseSetMatIndexBase(descrC, CUSPARSE_INDEX_BASE_ZERO);
+  cusparseSetMatType(descrC, CUSPARSE_MATRIX_TYPE_GENERAL);
 }
 
-void CSC::initFromFile(std::string nzdataFile, std::string indicesFile, std::string indptrFile, int nrow, int ncol)
-{
-    m = nrow;
-    n = ncol;
+void CSC::initFromFile(std::string nzdataFile, std::string indicesFile, std::string indptrFile, int nrow, int ncol) {
+  m = nrow;
+  n = ncol;
 
-    assert(m>0);
-    assert(n>0);
+  assert(m > 0);
+  assert(n > 0);
 
-    indptr = new int[ncol+1];
-    std::ifstream fp(indptrFile.c_str(),std::ios::binary);
-    fp.read((char*)indptr,(ncol+1)*sizeof(int));
-    fp.close();
+  indptr = new int[ncol + 1];
+  std::ifstream fp(indptrFile.c_str(), std::ios::binary);
+  fp.read((char *)indptr, (ncol + 1) * sizeof(int));
+  fp.close();
 
-    fp.open(nzdataFile.c_str(),std::ios::binary);
-	fp.seekg(0,std::ios::end);
-    nnz = fp.tellg()/sizeof(float);
-    nzdata = new float[nnz];
-    indices = new int[nnz];
-    fp.seekg(0,std::ios::beg);
-    fp.read((char*)nzdata,nnz*sizeof(float));
-    fp.close();
+  fp.open(nzdataFile.c_str(), std::ios::binary);
+  fp.seekg(0, std::ios::end);
+  nnz = fp.tellg() / sizeof(float);
+  nzdata = new float[nnz];
+  indices = new int[nnz];
+  fp.seekg(0, std::ios::beg);
+  fp.read((char *)nzdata, nnz * sizeof(float));
+  fp.close();
 
-    fp.open(indicesFile.c_str(),std::ios::binary);
-    fp.read((char*)indices,nnz*sizeof(float));
-    fp.close();
+  fp.open(indicesFile.c_str(), std::ios::binary);
+  fp.read((char *)indices, nnz * sizeof(float));
+  fp.close();
 
-    assert(m*n>=nnz);
+  assert(m * n >= nnz);
 
-    nnzDataFlag = true; 
+  nnzDataFlag = true;
 }
 
-void CSC::initFromMemory(float *nzdata1, int* indices1, int *indptr1, int nrow, int ncol, int nz)
-{
-    // std::cout << "Initialize CSC sparse matrix " << nrow << " x " << ncol << std::endl;
-    m = nrow;
-    n = ncol;
-    nnz = nz;
+void CSC::initFromMemory(float *nzdata1, int *indices1, int *indptr1, int nrow, int ncol, int nz) {
+  // std::cout << "Initialize CSC sparse matrix " << nrow << " x " << ncol << std::endl;
+  m = nrow;
+  n = ncol;
+  nnz = nz;
 
-    assert(m>0);
-    assert(n>0);
-    assert(m*n>=nnz);
+  assert(m > 0);
+  assert(n > 0);
+  assert(m * n >= nnz);
 
-    nzdata = new float[nnz];
-    indices = new int[nnz];
-    indptr = new int[n+1];
+  nzdata = new float[nnz];
+  indices = new int[nnz];
+  indptr = new int[n + 1];
 
-    memcpy(nzdata, nzdata1, sizeof(float)*nnz);
-    memcpy(indices, indices1, sizeof(int)*nnz);
-    memcpy(indptr, indptr1, sizeof(int)*(n+1));
+  memcpy(nzdata, nzdata1, sizeof(float) * nnz);
+  memcpy(indices, indices1, sizeof(int) * nnz);
+  memcpy(indptr, indptr1, sizeof(int) * (n + 1));
 
-    nnzDataFlag = true; 
+  nnzDataFlag = true;
 }
 
-void CSC::copyToGPU()
-{
-    checkCudaErrors(cudaMalloc((void **) &nzdata_d, sizeof(float)*nnz));
-    checkCudaErrors(cudaMalloc((void **) &indices_d, sizeof(int)*nnz));
-    checkCudaErrors(cudaMalloc((void **) &indptr_d, sizeof(int)*(n+1)));
-    
-    checkCudaErrors(cudaMemcpy(nzdata_d, nzdata, sizeof(float)*nnz, cudaMemcpyHostToDevice));
-    checkCudaErrors(cudaMemcpy(indices_d, indices, sizeof(int)*nnz, cudaMemcpyHostToDevice));
-    checkCudaErrors(cudaMemcpy(indptr_d, indptr, sizeof(float)*(n+1), cudaMemcpyHostToDevice));
+void CSC::copyToGPU() {
+  checkCudaErrors(cudaMalloc((void **)&nzdata_d, sizeof(float) * nnz));
+  checkCudaErrors(cudaMalloc((void **)&indices_d, sizeof(int) * nnz));
+  checkCudaErrors(cudaMalloc((void **)&indptr_d, sizeof(int) * (n + 1)));
 
-    copyGPUFlag = true;
+  checkCudaErrors(cudaMemcpy(nzdata_d, nzdata, sizeof(float) * nnz, cudaMemcpyHostToDevice));
+  checkCudaErrors(cudaMemcpy(indices_d, indices, sizeof(int) * nnz, cudaMemcpyHostToDevice));
+  checkCudaErrors(cudaMemcpy(indptr_d, indptr, sizeof(float) * (n + 1), cudaMemcpyHostToDevice));
+
+  copyGPUFlag = true;
 }
 
-void CSC::freeGPU()
-{
-    if(copyGPUFlag)
-    {
-        checkCudaErrors(cudaFree(indices_d));
-        checkCudaErrors(cudaFree(indptr_d));
-        checkCudaErrors(cudaFree(nzdata_d));
+void CSC::freeGPU() {
+  if (copyGPUFlag) {
+	checkCudaErrors(cudaFree(bsrRowPtrC_d));
+	checkCudaErrors(cudaFree(bsrColIndC_d));
+	checkCudaErrors(cudaFree(bsrValC_d));
 
-        copyGPUFlag = false;
-        // std::cout << "Free GPU CSC matrix success!\n";
-    }
+	checkCudaErrors(cudaFree(bsrRowPtrC_d_));
+	checkCudaErrors(cudaFree(bsrColIndC_d_));
+	checkCudaErrors(cudaFree(bsrValC_d_));
+//	checkCudaErrors(cudaFree(indices_d));
+//	checkCudaErrors(cudaFree(indptr_d));
+//	checkCudaErrors(cudaFree(nzdata_d));
+
+//	checkCudaErrors(cudaFree(indices_d_));
+//	checkCudaErrors(cudaFree(indptr_d_));
+//	checkCudaErrors(cudaFree(nzdata_d_));
+
+	copyGPUFlag = false;
+	// std::cout << "Free GPU CSC matrix success!\n";
+  }
 }
 
-CSC::~CSC()
-{
-    if(nnzDataFlag)
-    {
-        delete[] nzdata;
-        delete[] indptr;
-        delete[] indices;
+CSC::~CSC() {
+  if (nnzDataFlag) {
+	delete[] nzdata;
+	delete[] indptr;
+	delete[] indices;
 
-        nnzDataFlag = false;
-        // std::cout << "Free CPU CSC matrix success!\n";
-    }
+	nnzDataFlag = false;
+	// std::cout << "Free CPU CSC matrix success!\n";
+  }
+}
+
+void CSC::csc2csr2bsr() {
+  checkCudaErrors(cudaMalloc((void **)&nzdata_d_, sizeof(float) * nnz));
+  checkCudaErrors(cudaMalloc((void **)&indices_d_, sizeof(int) * nnz));
+  checkCudaErrors(cudaMalloc((void **)&indptr_d_, sizeof(int) * (m + 1)));
+
+  size_t lworkInBytes = 0;
+  char *d_work = NULL;
+
+  status = cusparseCsr2cscEx2_bufferSize(handle,
+										 n,
+										 m,
+										 nnz,
+										 nzdata_d,
+										 indptr_d,
+										 indices_d,
+										 nzdata_d_,
+										 indptr_d_,
+										 indices_d_,
+										 CUDA_R_32F,
+										 CUSPARSE_ACTION_NUMERIC,
+										 CUSPARSE_INDEX_BASE_ZERO,
+										 CUSPARSE_CSR2CSC_ALG1,
+										 &lworkInBytes);
+
+  assert(CUSPARSE_STATUS_SUCCESS == status);
+  printf("lworkInBytes (csr2csc) = %lld \n", (long long)lworkInBytes);
+  checkCudaErrors(cudaMalloc((void **)&d_work, lworkInBytes));
+
+  status = cusparseCsr2cscEx2(handle,
+							  n,
+							  m,
+							  nnz,
+							  nzdata_d,
+							  indptr_d,
+							  indices_d,
+							  nzdata_d_,
+							  indptr_d_,
+							  indices_d_,
+							  CUDA_R_32F,
+							  CUSPARSE_ACTION_NUMERIC,
+							  CUSPARSE_INDEX_BASE_ZERO,
+							  CUSPARSE_CSR2CSC_ALG1,
+							  d_work);
+
+  assert(CUSPARSE_STATUS_SUCCESS == status);
+  checkCudaErrors(cudaFree(d_work));
+
+  //csr2bsr for forward
+  int mb = (m + BLOCKDIM - 1) / BLOCKDIM;
+  int nb = (n + BLOCKDIM - 1) / BLOCKDIM;
+  checkCudaErrors(cudaMalloc((void **)&bsrRowPtrC_d_, sizeof(int) * (mb + 1)));
+  cusparseXcsr2bsrNnz(handle,
+					  CUSPARSE_DIRECTION_COLUMN,
+					  m,
+					  n,
+					  descrC,
+					  indptr_d_,
+					  indices_d_,
+					  BLOCKDIM,
+					  descrC,
+					  bsrRowPtrC_d_,
+					  &nnb);
+
+
+  //csr2bsr for backward
+  checkCudaErrors(cudaMalloc((void **)&bsrRowPtrC_d, sizeof(int) * (nb + 1)));
+  cusparseXcsr2bsrNnz(handle,
+					  CUSPARSE_DIRECTION_COLUMN,
+					  n,
+					  m,
+					  descrC,
+					  indptr_d,
+					  indices_d,
+					  BLOCKDIM,
+					  descrC,
+					  bsrRowPtrC_d,
+					  &nnb);
+
+  checkCudaErrors(cudaFree(indices_d));
+  checkCudaErrors(cudaFree(indptr_d));
+  checkCudaErrors(cudaFree(nzdata_d));
+
+  checkCudaErrors(cudaFree(indices_d_));
+  checkCudaErrors(cudaFree(indptr_d_));
+  checkCudaErrors(cudaFree(nzdata_d_));
+}
+
+void CSC::forward() {
+  float alpha = 1;
+  float beta = 0;
+  int mb = (m + BLOCKDIM - 1) / BLOCKDIM;
+  int nb = (n + BLOCKDIM - 1) / BLOCKDIM;
+  cusparseSbsrmv(handle,
+				 CUSPARSE_DIRECTION_COLUMN,
+				 CUSPARSE_OPERATION_NON_TRANSPOSE,
+				 mb,
+				 nb,
+				 nnb,
+				 &alpha,
+				 descrC,
+				 bsrValC_d_,
+				 bsrRowPtrC_d_,
+				 bsrColIndC_d_,
+				 BLOCKDIM,
+				 weights_d,
+				 &beta,
+				 y_forward_d);
+}
+
+void CSC::backward() {
+  float alpha = 1;
+  float beta = 0;
+  int mb = (m + BLOCKDIM - 1) / BLOCKDIM;
+  int nb = (n + BLOCKDIM - 1) / BLOCKDIM;
+
+  cusparseSbsrmv(handle,
+				 CUSPARSE_DIRECTION_COLUMN,
+				 CUSPARSE_OPERATION_NON_TRANSPOSE,
+				 nb,
+				 mb,
+				 nnb,
+				 &alpha,
+				 descrC,
+				 bsrValC_d,
+				 bsrRowPtrC_d,
+				 bsrColIndC_d,
+				 BLOCKDIM,
+				 weights_d,
+				 &beta,
+				 y_backward_d);
 }
