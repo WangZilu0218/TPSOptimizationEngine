@@ -11,4 +11,4 @@ set_target_properties(EUDLoss PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/e
 add_library(optEngine fista.cpp fista.cu)
 target_link_libraries(optEngine DoseLoss DVHLoss EUDLoss)
 target_include_directories(optEngine PUBLIC ${CUDA_INCLUDE_DIRS} /usr/local/cuda/samples/common/inc ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR})
-set_target_properties(optEngine PROPERTIES CUDA_ARCHITECTURES "70;72")
+set_target_properties(optEngine PROPERTIES CUDA_ARCHITECTURES "70;72;75")

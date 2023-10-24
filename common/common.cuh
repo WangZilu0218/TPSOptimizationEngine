@@ -18,7 +18,7 @@
 # define DEBUG_PRINT(x) do {} while (0)
 #endif
 
-
+#define BLOCKDIM 256
 
 typedef struct __align__(32) {
 float x, y, z, w, o, k, m, n;

@@ -8,18 +8,27 @@
 #include "options.h"
 #include "common/csc.h"
 using namespace std;
+
+void subVec(float *p_v1, float *p_v2, float *p_result, int size);
+void addVec(float *p_v1, float *p_v2, int size);
+float g(float *d_v, float *d_sum, float lambda, int size);
+float normF2(float *d_v, float *d_sum, int size);
+
 class fista {
  public:
   fista();
   fista(const opts &, const CSC &, float *, float *, int *, int *, int, int, int);
   ~fista();
+ public:
+  void setMinDoseValue(float minDoseValue) {this->minDoseValue = minDoseValue;}
+  void setMaxDoseValue(float maxDoseValue) {this->maxDoseValue = maxDoseValue;}
  private:
-  float calculateQ();
+  float calculateQ(float *, float *);
   float calc_F(float *);
+  float cal_loss(float *);
   void optimize();
   void step();
-  void forwardMV();
-  void backwardMV();
+
  private:
   const opts op;
   CSC csc;
@@ -31,15 +40,17 @@ class fista {
   float *dYOld;
   float *dYNew;
 
-  int   *bsrRowPtrC;
-  int   *bsrColIndC;
-  float *bsrValC;
  private:
   float *dDose;
   float *dDoseGrad;
   float *dLoss;
+
+ private:
+  float minDoseValue;
+  float maxDoseValue;
  public:
   vector<float> weights;
+  float loss;
 };
 
 #endif //OPTIMIZE_OPTENGINE_FISTA_H_

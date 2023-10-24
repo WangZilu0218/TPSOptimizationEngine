@@ -10,9 +10,6 @@ CSC::CSC() {
   copyGPUFlag = false;
   nnzDataFlag = false;
 
-  checkCudaErrors(cudaMalloc((void **)&y_forward_d, sizeof(float) * m));
-  checkCudaErrors(cudaMalloc((void **)&y_backward_d, sizeof(float) * n));
-
   //init cusparse context
   checkCudaErrors(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
 
@@ -69,9 +66,9 @@ void CSC::initFromMemory(float *nzdata1, int *indices1, int *indptr1, int nrow, 
   assert(n > 0);
   assert(m * n >= nnz);
 
-  nzdata = new float[nnz];
+  nzdata  = new float[nnz];
   indices = new int[nnz];
-  indptr = new int[n + 1];
+  indptr  = new int[n + 1];
 
   memcpy(nzdata, nzdata1, sizeof(float) * nnz);
   memcpy(indices, indices1, sizeof(int) * nnz);
@@ -84,6 +81,9 @@ void CSC::copyToGPU() {
   checkCudaErrors(cudaMalloc((void **)&nzdata_d, sizeof(float) * nnz));
   checkCudaErrors(cudaMalloc((void **)&indices_d, sizeof(int) * nnz));
   checkCudaErrors(cudaMalloc((void **)&indptr_d, sizeof(int) * (n + 1)));
+
+  checkCudaErrors(cudaMalloc((void **)&y_forward_d, sizeof(float) * m));
+  checkCudaErrors(cudaMalloc((void **)&y_backward_d, sizeof(float) * n));
 
   checkCudaErrors(cudaMemcpy(nzdata_d, nzdata, sizeof(float) * nnz, cudaMemcpyHostToDevice));
   checkCudaErrors(cudaMemcpy(indices_d, indices, sizeof(int) * nnz, cudaMemcpyHostToDevice));
@@ -101,6 +101,9 @@ void CSC::freeGPU() {
 	checkCudaErrors(cudaFree(bsrRowPtrC_d_));
 	checkCudaErrors(cudaFree(bsrColIndC_d_));
 	checkCudaErrors(cudaFree(bsrValC_d_));
+
+	checkCudaErrors(cudaFree(y_forward_d));
+	checkCudaErrors(cudaFree(y_backward_d));
 //	checkCudaErrors(cudaFree(indices_d));
 //	checkCudaErrors(cudaFree(indptr_d));
 //	checkCudaErrors(cudaFree(nzdata_d));
@@ -176,33 +179,36 @@ void CSC::csc2csr2bsr() {
   int mb = (m + BLOCKDIM - 1) / BLOCKDIM;
   int nb = (n + BLOCKDIM - 1) / BLOCKDIM;
   checkCudaErrors(cudaMalloc((void **)&bsrRowPtrC_d_, sizeof(int) * (mb + 1)));
-  cusparseXcsr2bsrNnz(handle,
-					  CUSPARSE_DIRECTION_COLUMN,
-					  m,
-					  n,
-					  descrC,
-					  indptr_d_,
-					  indices_d_,
-					  BLOCKDIM,
-					  descrC,
-					  bsrRowPtrC_d_,
-					  &nnb);
+  status = cusparseXcsr2bsrNnz(handle,
+							   CUSPARSE_DIRECTION_COLUMN,
+							   m,
+							   n,
+							   descrC,
+							   indptr_d_,
+							   indices_d_,
+							   BLOCKDIM,
+							   descrC,
+							   bsrRowPtrC_d_,
+							   &nnb);
+  assert(CUSPARSE_STATUS_SUCCESS == status);
 
 
   //csr2bsr for backward
   checkCudaErrors(cudaMalloc((void **)&bsrRowPtrC_d, sizeof(int) * (nb + 1)));
-  cusparseXcsr2bsrNnz(handle,
-					  CUSPARSE_DIRECTION_COLUMN,
-					  n,
-					  m,
-					  descrC,
-					  indptr_d,
-					  indices_d,
-					  BLOCKDIM,
-					  descrC,
-					  bsrRowPtrC_d,
-					  &nnb);
+  status = cusparseXcsr2bsrNnz(handle,
+							   CUSPARSE_DIRECTION_COLUMN,
+							   n,
+							   m,
+							   descrC,
+							   indptr_d,
+							   indices_d,
+							   BLOCKDIM,
+							   descrC,
+							   bsrRowPtrC_d,
+							   &nnb);
+  assert(CUSPARSE_STATUS_SUCCESS == status);
 
+//free csr data
   checkCudaErrors(cudaFree(indices_d));
   checkCudaErrors(cudaFree(indptr_d));
   checkCudaErrors(cudaFree(nzdata_d));
@@ -212,11 +218,11 @@ void CSC::csc2csr2bsr() {
   checkCudaErrors(cudaFree(nzdata_d_));
 }
 
-void CSC::forward() {
+void CSC::forward(float *weights_d) {
   float alpha = 1;
   float beta = 0;
-  int mb = (m + BLOCKDIM - 1) / BLOCKDIM;
-  int nb = (n + BLOCKDIM - 1) / BLOCKDIM;
+  int   mb = (m + BLOCKDIM - 1) / BLOCKDIM;
+  int   nb = (n + BLOCKDIM - 1) / BLOCKDIM;
   cusparseSbsrmv(handle,
 				 CUSPARSE_DIRECTION_COLUMN,
 				 CUSPARSE_OPERATION_NON_TRANSPOSE,
@@ -234,11 +240,11 @@ void CSC::forward() {
 				 y_forward_d);
 }
 
-void CSC::backward() {
+void CSC::backward(float *dose_d) {
   float alpha = 1;
   float beta = 0;
-  int mb = (m + BLOCKDIM - 1) / BLOCKDIM;
-  int nb = (n + BLOCKDIM - 1) / BLOCKDIM;
+  int   mb = (m + BLOCKDIM - 1) / BLOCKDIM;
+  int   nb = (n + BLOCKDIM - 1) / BLOCKDIM;
 
   cusparseSbsrmv(handle,
 				 CUSPARSE_DIRECTION_COLUMN,
@@ -252,7 +258,7 @@ void CSC::backward() {
 				 bsrRowPtrC_d,
 				 bsrColIndC_d,
 				 BLOCKDIM,
-				 weights_d,
+				 dose_d,
 				 &beta,
 				 y_backward_d);
 }

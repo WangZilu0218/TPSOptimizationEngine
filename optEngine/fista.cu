@@ -76,9 +76,25 @@ void __global__ dotVecKernel(float *p_v1, float *p_v2, float *p_result, int size
 void __global__ subVecKernel(float *p_v1, float *p_v2, float *p_result, int size) {
   int idx = blockDim.x * blockIdx.x + threadIdx.x;
   while(idx < size) {
-	p_result[idx] = p_v1[idx] * p_v2[idx];
+	p_result[idx] = p_v1[idx] - p_v2[idx];
 	idx += gridDim.x * blockDim.x;
   }
+}
+
+void __global__ addVecKernel(float *p_v1, float *p_v2, int size) {
+  int idx = blockDim.x * blockIdx.x + threadIdx.x;
+  while(idx < size) {
+	p_v1[idx] += p_v2[idx];
+	idx += gridDim.x * blockDim.x;
+  }
+}
+
+void subVec(float *p_v1, float *p_v2, float *p_result, int size) {
+  subVecKernel<<<GRIDDIM, BLOCKDIM>>>(p_v1, p_v2, p_result, size);
+}
+
+void addVec(float *p_v1, float *p_v2, int size) {
+  addVecKernel<<<GRIDDIM, BLOCKDIM>>>(p_v1, p_v2, size);
 }
 
 float g(float *d_v, float *d_sum, float lambda, int size) {
