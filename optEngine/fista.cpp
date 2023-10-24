@@ -42,23 +42,47 @@ float fista::calc_F(float *pX) {
 float fista::cal_loss(float *dose) {
   float *tempDoseGradBuffer;
   checkCudaErrors(cudaMalloc((void **)&tempDoseGradBuffer, sizeof(float) * csc.m));
-  for (auto iter : op.lossName) {
+  float result = 0.0f;
+  for (auto iter: op.lossName) {
 	if (iter.compare("minDoseLoss") == 0) {
-	  loss += calDoseLoss(dose, tempDoseGradBuffer, dLoss, minDoseValue, csc.m, -1);
+	  result += calDoseLoss(dose, tempDoseGradBuffer, dLoss, minDoseValue, csc.m, -1);
 	  addVec(dDoseGrad, tempDoseGradBuffer, csc.m);
 	} else if (iter.compare("maxDoseLoss") == 0) {
-	  loss += calDoseLoss(dose, tempDoseGradBuffer, dLoss, minDoseValue, csc.m, 1);
+	  result += calDoseLoss(dose, tempDoseGradBuffer, dLoss, minDoseValue, csc.m, 1);
+	  addVec(dDoseGrad, tempDoseGradBuffer, csc.m);
+	} else if (iter.compare("minDVHLoss") == 0) {
+	  result += calDVHLoss(dose, tempDoseGradBuffer, dLoss, d1, csc.m, v1, -1);
+	  addVec(dDoseGrad, tempDoseGradBuffer, csc.m);
+	} else if (iter.compare("maxDVHLoss") == 0) {
+	  result += calDVHLoss(dose, tempDoseGradBuffer, dLoss, d1, csc.m, v1, 1);
+	  addVec(dDoseGrad, tempDoseGradBuffer, csc.m);
+	} else if (iter.compare("lowerGEUDLoss") == 0) {
+	  result += calgEUDLoss(dose, tempDoseGradBuffer, lowerGEUDTarget, a, csc.m, -1);
+	  addVec(dDoseGrad, tempDoseGradBuffer, csc.m);
+	} else if (iter.compare("targetGEUDLoss") == 0) {
+	  result += calgEUDLoss(dose, tempDoseGradBuffer, GEUDTarget, a, csc.m, 0);
+	  addVec(dDoseGrad, tempDoseGradBuffer, csc.m);
+	} else if (iter.compare("upperGEUDLoss") == 0) {
+	  result += calgEUDLoss(dose, tempDoseGradBuffer, upperGEUDTarget, a, csc.m, 1);
 	  addVec(dDoseGrad, tempDoseGradBuffer, csc.m);
 	}
   }
   checkCudaErrors(cudaFree(tempDoseGradBuffer));
-  return loss;
+  return result;
 }
 
-float fista::calculateQ(float *x, float *y) {
+float fista::calculateQ(float *x, float *y, float L) {
+  float temp = 0.0f;
+  float *tempBuffer;
+  checkCudaErrors(cudaMalloc((void **)&tempBuffer, sizeof(float) * csc.n));
+  subVec(x, y, tempBuffer, csc.n);
   csc.forward(y);
+  temp += cal_loss(csc.y_forward_d) + g(y, dLoss, op.lambda, csc.n);
   csc.backward(y);
-  return 0.0f;
+  temp += dotVec(tempBuffer, csc.y_backward_d, dLoss, csc.n) + L / 2 * normF2(tempBuffer, dLoss, csc.n)
+	  + g(x, dLoss, op.lambda, csc.n);
+  checkCudaErrors(cudaFree(tempBuffer));
+  return temp;
 }
 
 void fista::step() {

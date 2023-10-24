@@ -12,6 +12,7 @@ using namespace std;
 void subVec(float *p_v1, float *p_v2, float *p_result, int size);
 void addVec(float *p_v1, float *p_v2, int size);
 float g(float *d_v, float *d_sum, float lambda, int size);
+float dotVec(float *p_v1, float *p_v2, float *p_result, int size);
 float normF2(float *d_v, float *d_sum, int size);
 
 class fista {
@@ -23,7 +24,7 @@ class fista {
   void setMinDoseValue(float minDoseValue) {this->minDoseValue = minDoseValue;}
   void setMaxDoseValue(float maxDoseValue) {this->maxDoseValue = maxDoseValue;}
  private:
-  float calculateQ(float *, float *);
+  float calculateQ(float *, float *, float);
   float calc_F(float *);
   float cal_loss(float *);
   void optimize();
@@ -48,6 +49,15 @@ class fista {
  private:
   float minDoseValue;
   float maxDoseValue;
+  float d1;
+  float v1;
+  float d2;
+  float v2;
+  float upperGEUDTarget;
+  float lowerGEUDTarget;
+  float GEUDTarget;
+  float a;
+
  public:
   vector<float> weights;
   float loss;

@@ -89,6 +89,18 @@ void __global__ addVecKernel(float *p_v1, float *p_v2, int size) {
   }
 }
 
+float dotVec(float *p_v1, float *p_v2, float *p_result, int size) {
+  dotVecKernel<<<GRIDDIM, BLOCKDIM>>>(p_v1, p_v2, p_result, size);
+  float *h_sum = (float *)malloc(sizeof(float) * GRIDDIM);
+  cudaMemcpy(h_sum, p_result, sizeof(float) * GRIDDIM, cudaMemcpyDeviceToHost);
+  float temp = 0.0f;
+  for (int i = 0; i < GRIDDIM; i++) {
+	temp += h_sum[i];
+  }
+  free(h_sum);
+  return temp;
+}
+
 void subVec(float *p_v1, float *p_v2, float *p_result, int size) {
   subVecKernel<<<GRIDDIM, BLOCKDIM>>>(p_v1, p_v2, p_result, size);
 }
