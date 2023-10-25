@@ -12,11 +12,12 @@
 using namespace std;
 
 //void subVec(float *p_v1, float *p_v2, float *p_result, int size);
-void addVec(float *p_v1, float *p_v2, int size);
+//void addVec(float *p_v1, float *p_v2, int size);
 float g(float *d_v, float *d_sum, float lambda, int size);
 //float dotVec(float *p_v1, float *p_v2, float *p_result, int size);
 //float normF2(float *d_v, float *d_sum, int size);
-void projection(float *p_v, float *p_result, float lambda, bool pos, int size);
+void projection(float *p_v, float lambda, bool pos, int size);
+void absVec(float *p_v, int size);
 
 class fista {
  public:
@@ -31,7 +32,7 @@ class fista {
   float calc_F(float *);
   float cal_loss(float *);
   void optimize();
-  void step();
+  bool step();
 
  private:
   const opts op;
@@ -63,6 +64,7 @@ class fista {
   float a;
 
   float L;
+  float t_old;
   int iter;
 
  public:
