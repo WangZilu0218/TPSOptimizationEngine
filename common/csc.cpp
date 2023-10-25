@@ -195,7 +195,6 @@ void CSC::csc2csr2bsr() {
 							   &nnb);
   assert(CUSPARSE_STATUS_SUCCESS == status);
 
-
   //csr2bsr for backward
   checkCudaErrors(cudaMalloc((void **)&bsrRowPtrC_d, sizeof(int) * (nb + 1)));
   status = cusparseXcsr2bsrNnz(handle,
