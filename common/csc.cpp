@@ -126,6 +126,9 @@ CSC::~CSC() {
 	nnzDataFlag = false;
 	// std::cout << "Free CPU CSC matrix success!\n";
   }
+  cusparseDestroy(handle);
+  cusparseDestroyMatDescr(descrC);
+  checkCudaErrors( cudaStreamDestroy(stream));
 }
 
 void CSC::csc2csr2bsr() {

@@ -10,6 +10,14 @@ float __device__ projL1(float U, float lambda, bool pos) {
 	return fmaxf(0, U - lambda) + fminf(0, U + lambda);
 }
 
+void __global__ projectionKernel(float *p_v, float *p_result, float lambda, bool pos, int size) {
+  int idx = blockDim.x * blockIdx.x + threadIdx.x;
+  while (idx < size) {
+	p_result[idx] = projL1(p_v[idx], lambda, pos);
+	idx += gridDim.x * blockDim.x;
+  }
+}
+
 void __global__ gKernel(float *p_v, float *p_sum, float lambda, int size) {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
   int cacheId = threadIdx.x;
@@ -87,6 +95,10 @@ void __global__ addVecKernel(float *p_v1, float *p_v2, int size) {
 	p_v1[idx] += p_v2[idx];
 	idx += gridDim.x * blockDim.x;
   }
+}
+
+void projection(float *p_v, float *p_result, float lambda, bool pos, int size) {
+  projectionKernel<<<GRIDDIM, BLOCKDIM>>>(p_v, p_result, lambda, pos, size);
 }
 
 float dotVec(float *p_v1, float *p_v2, float *p_result, int size) {

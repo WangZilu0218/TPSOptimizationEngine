@@ -7,13 +7,16 @@
 #include "vector"
 #include "options.h"
 #include "common/csc.h"
+#include "cublas.h"
+#include "cublas_v2.h"
 using namespace std;
 
-void subVec(float *p_v1, float *p_v2, float *p_result, int size);
+//void subVec(float *p_v1, float *p_v2, float *p_result, int size);
 void addVec(float *p_v1, float *p_v2, int size);
 float g(float *d_v, float *d_sum, float lambda, int size);
-float dotVec(float *p_v1, float *p_v2, float *p_result, int size);
-float normF2(float *d_v, float *d_sum, int size);
+//float dotVec(float *p_v1, float *p_v2, float *p_result, int size);
+//float normF2(float *d_v, float *d_sum, int size);
+void projection(float *p_v, float *p_result, float lambda, bool pos, int size);
 
 class fista {
  public:
@@ -32,6 +35,7 @@ class fista {
 
  private:
   const opts op;
+  opts op0;
   CSC csc;
 
  private:
@@ -58,9 +62,15 @@ class fista {
   float GEUDTarget;
   float a;
 
+  float L;
+  int iter;
+
  public:
   vector<float> weights;
   float loss;
+ private:
+  cublasHandle_t handle_;
+  cublasStatus_t stat;
 };
 
 #endif //OPTIMIZE_OPTENGINE_FISTA_H_
