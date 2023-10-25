@@ -103,22 +103,56 @@ float fista::calculateQ(float *x, float *y, float L) {
   temp += cal_loss(csc.y_forward_d) + g(y, dLoss, op.lambda, csc.n);
   csc.backward(y);
   float nrm, dt;
-  CUBLAS_SAFE_CALL(cublasSnrm2(handle_, csc.n, tempBuffer, 1, &nrm));
+  CUBLAS_SAFE_CALL(cublasSnrm2_v2(handle_, csc.n, tempBuffer, 1, &nrm));
   CUBLAS_SAFE_CALL(cublasSdot_v2(handle_, csc.n, tempBuffer, 1, csc.y_backward_d, 1, &dt));
   temp += dt + L / 2 * nrm + g(x, dLoss, op.lambda, csc.n);
   checkCudaErrors(cudaFree(tempBuffer));
   return temp;
 }
 
-void fista::step() {
+bool fista::step() {
+  bool ifBreak = false;
   iter ++;
   float Lbar = L;
-  float *zk;
-  checkCudaErrors(cudaMalloc((void **)&zk, sizeof(float) * csc.n));
+  float *tempBuffer;
+  checkCudaErrors(cudaMalloc((void **)&tempBuffer, sizeof(float) * csc.n));
+  csc.backward(dYOld);
   while (true) {
 	op0.lambda = op.lambda / Lbar;
+	float alpha = -1 / Lbar;
+	checkCudaErrors(cudaMemcpy(tempBuffer, dYOld, sizeof(float) * csc.n, cudaMemcpyDeviceToDevice));
+	CUBLAS_SAFE_CALL(cublasSaxpy_v2(handle_, csc.n, &alpha, csc.y_backward_d, 1, tempBuffer, 1));
+	projection(tempBuffer, op0.lambda, op0.pos, csc.n);
+	float F = cal_loss(tempBuffer);
+	float Q = calculateQ(tempBuffer, dYOld, Lbar);
+	if (F <= Q)
+	  break;
+	Lbar *= op.eta;
+	L = Lbar;
   }
-  checkCudaErrors(cudaFree(zk));
+  checkCudaErrors(cudaMemcpy(dXNew, dYOld, sizeof(float) * csc.n, cudaMemcpyDeviceToDevice));
+  float alpha = -1 / L;
+  CUBLAS_SAFE_CALL(cublasSaxpy_v2(handle_, csc.n, &alpha, csc.y_backward_d, 1, dXNew, 1));
+  projection(dXNew, op.lambda / L, op.pos, csc.n);
+  checkCudaErrors(cudaMemcpy(dYNew, dXNew, sizeof(float) * csc.n, cudaMemcpyDeviceToDevice));
+  float t_new = 0.5 * (1 + sqrt(1 + 4 * pow(t_old, 2)));
+
+  alpha = -1.0f;
+  CUBLAS_SAFE_CALL(cublasSaxpy_v2(handle_, csc.n, &alpha, dXOld, 1, dYNew, 1));
+  alpha = (t_old - 1) / t_new;
+  CUBLAS_SAFE_CALL(cublasSaxpy_v2(handle_, csc.n, &alpha, dXNew, 1, dYNew, 1));
+  //cal e
+  checkCudaErrors(cudaMemcpy(tempBuffer, dXNew, sizeof(float) * csc.n, cudaMemcpyDeviceToDevice));
+  alpha = -1.0f;
+  CUBLAS_SAFE_CALL(cublasSaxpy_v2(handle_, csc.n, &alpha, dXOld, 1, tempBuffer, 1));
+  float nrm1 = 0.0f;
+  absVec(tempBuffer, csc.n);
+  CUBLAS_SAFE_CALL(cublasSasum_v2(handle_, csc.n, tempBuffer, 1, &nrm1));
+  nrm1 /= csc.n;
+  if (nrm1 < op.tol)
+	ifBreak = true;
+  checkCudaErrors(cudaFree(tempBuffer));
+  return ifBreak;
 }
 
 fista::~fista() {
