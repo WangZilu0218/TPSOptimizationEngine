@@ -42,7 +42,7 @@ fista::fista(const opts &op,
 
   checkCudaErrors(cudaMemcpy(dXOld, pWeights, sizeof(float) * csc.n, cudaMemcpyHostToDevice));
   checkCudaErrors(cudaMemcpy(dYOld, pWeights, sizeof(float) * csc.n, cudaMemcpyHostToDevice));
-  CUBLAS_SAFE_CALL(cublasCreate(&handle_));
+  CUBLAS_SAFE_CALL(cublasCreate_v2(&handle_));
 
 }
 
@@ -164,4 +164,5 @@ fista::~fista() {
   checkCudaErrors(cudaFree(dYOld));
   checkCudaErrors(cudaFree(dYNew));
   checkCudaErrors(cudaFree(dLoss));
+  CUBLAS_SAFE_CALL(cublasDestroy_v2(handle_));
 }
