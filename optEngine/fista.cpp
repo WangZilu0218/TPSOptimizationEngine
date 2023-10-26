@@ -54,6 +54,7 @@ float fista::calc_F(float *pX) {
 float fista::cal_loss(float *dose) {
   float *tempDoseGradBuffer;
   checkCudaErrors(cudaMalloc((void **)&tempDoseGradBuffer, sizeof(float) * csc.m));
+  checkCudaErrors(cudaMemset(dDoseGrad, 0, sizeof(float) * csc.m));
   float result = 0.0f;
   float alpha = 1.0f;
   for (auto iter: op.lossName) {
@@ -93,20 +94,20 @@ float fista::cal_loss(float *dose) {
 
 float fista::calculateQ(float *x, float *y, float L) {
   float temp = 0.0f;
-  float *tempBuffer;
+//  float *tempBuffer;
   float alpha = -1.0f;
-  checkCudaErrors(cudaMalloc((void **)&tempBuffer, sizeof(float) * csc.n));
-  checkCudaErrors(cudaMemcpy(tempBuffer, y, sizeof(float) * csc.n, cudaMemcpyDeviceToDevice));
-  CUBLAS_SAFE_CALL(cublasSaxpy_v2(handle_, csc.n, &alpha, x, 1, tempBuffer, 1));
+//  checkCudaErrors(cudaMalloc((void **)&tempBuffer, sizeof(float) * csc.n));
+//  checkCudaErrors(cudaMemcpy(tempBuffer, y, sizeof(float) * csc.n, cudaMemcpyDeviceToDevice));
+  CUBLAS_SAFE_CALL(cublasSaxpy_v2(handle_, csc.n, &alpha, y, 1, x, 1));
 //  subVec(x, y, tempBuffer, csc.n);
-  csc.forward(y);
+//  csc.forward(y);
   temp += cal_loss(csc.y_forward_d) + g(y, dLoss, op.lambda, csc.n);
-  csc.backward(y);
+//  csc.backward(dDoseGrad);
   float nrm, dt;
-  CUBLAS_SAFE_CALL(cublasSnrm2_v2(handle_, csc.n, tempBuffer, 1, &nrm));
-  CUBLAS_SAFE_CALL(cublasSdot_v2(handle_, csc.n, tempBuffer, 1, csc.y_backward_d, 1, &dt));
+  CUBLAS_SAFE_CALL(cublasSnrm2_v2(handle_, csc.n, x, 1, &nrm));
+  CUBLAS_SAFE_CALL(cublasSdot_v2(handle_, csc.n, x, 1, csc.y_backward_d, 1, &dt));
   temp += dt + L / 2 * nrm + g(x, dLoss, op.lambda, csc.n);
-  checkCudaErrors(cudaFree(tempBuffer));
+//  checkCudaErrors(cudaFree(tempBuffer));
   return temp;
 }
 
@@ -116,14 +117,16 @@ bool fista::step() {
   float Lbar = L;
   float *tempBuffer;
   checkCudaErrors(cudaMalloc((void **)&tempBuffer, sizeof(float) * csc.n));
-  csc.backward(dYOld);
+  csc.forward(dYOld);
+  cal_loss(csc.y_forward_d);
+  csc.backward(dDoseGrad);
   while (true) {
 	op0.lambda = op.lambda / Lbar;
 	float alpha = -1 / Lbar;
 	checkCudaErrors(cudaMemcpy(tempBuffer, dYOld, sizeof(float) * csc.n, cudaMemcpyDeviceToDevice));
 	CUBLAS_SAFE_CALL(cublasSaxpy_v2(handle_, csc.n, &alpha, csc.y_backward_d, 1, tempBuffer, 1));
 	projection(tempBuffer, op0.lambda, op0.pos, csc.n);
-	float F = cal_loss(tempBuffer);
+	float F = cal_loss(tempBuffer) + g(tempBuffer, dLoss, op.lambda, csc.n);
 	float Q = calculateQ(tempBuffer, dYOld, Lbar);
 	if (F <= Q)
 	  break;
