@@ -155,6 +155,10 @@ bool fista::step() {
   if (nrm1 < op.tol)
 	ifBreak = true;
   checkCudaErrors(cudaFree(tempBuffer));
+  //update weights here
+  checkCudaErrors(cudaMemcpy(dXOld, dXNew, sizeof(float) * csc.n, cudaMemcpyDeviceToDevice));
+  checkCudaErrors(cudaMemcpy(dYOld, dYNew, sizeof(float) * csc.n, cudaMemcpyDeviceToDevice));
+  t_old = t_new;
   return ifBreak;
 }
 
