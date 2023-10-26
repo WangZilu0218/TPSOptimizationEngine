@@ -28,7 +28,7 @@ class fista {
   void setMinDoseValue(float minDoseValue) {this->minDoseValue = minDoseValue;}
   void setMaxDoseValue(float maxDoseValue) {this->maxDoseValue = maxDoseValue;}
  private:
-  float calculateQ(float *, float *, float);
+  float calculateQ(float *, float *, float, float);
   float calc_F(float *);
   float cal_loss(float *);
   void optimize();
