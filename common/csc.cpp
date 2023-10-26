@@ -132,9 +132,9 @@ CSC::~CSC() {
 }
 
 void CSC::csc2csr2bsr() {
-  checkCudaErrors(cudaMalloc((void **)&nzdata_d_, sizeof(float) * nnz));
+  checkCudaErrors(cudaMalloc((void **)&nzdata_d_,  sizeof(float) * nnz));
   checkCudaErrors(cudaMalloc((void **)&indices_d_, sizeof(int) * nnz));
-  checkCudaErrors(cudaMalloc((void **)&indptr_d_, sizeof(int) * (m + 1)));
+  checkCudaErrors(cudaMalloc((void **)&indptr_d_,  sizeof(int) * (m + 1)));
 
   size_t lworkInBytes = 0;
   char *d_work = NULL;
