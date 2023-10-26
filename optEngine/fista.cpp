@@ -58,31 +58,31 @@ float fista::cal_loss(float *dose) {
   float result = 0.0f;
   float alpha = 1.0f;
   for (auto iter: op.lossName) {
-	if (iter.compare("minDoseLoss") == 0) {
+	if (iter.compare("minDoseLoss") != 0) {
 	  result += calDoseLoss(dose, tempDoseGradBuffer, dLoss, minDoseValue, csc.m, -1);
 	  CUBLAS_SAFE_CALL(cublasSaxpy_v2(handle_, csc.m, &alpha, tempDoseGradBuffer, 1, dDoseGrad, 1));
 //	  addVec(dDoseGrad, tempDoseGradBuffer, csc.m);
-	} else if (iter.compare("maxDoseLoss") == 0) {
+	} else if (iter.compare("maxDoseLoss") != 0) {
 	  result += calDoseLoss(dose, tempDoseGradBuffer, dLoss, minDoseValue, csc.m, 1);
 	  CUBLAS_SAFE_CALL(cublasSaxpy_v2(handle_, csc.m, &alpha, tempDoseGradBuffer, 1, dDoseGrad, 1));
 //	  addVec(dDoseGrad, tempDoseGradBuffer, csc.m);
-	} else if (iter.compare("minDVHLoss") == 0) {
+	} else if (iter.compare("minDVHLoss") != 0) {
 	  result += calDVHLoss(dose, tempDoseGradBuffer, dLoss, d1, csc.m, v1, -1);
 	  CUBLAS_SAFE_CALL(cublasSaxpy_v2(handle_, csc.m, &alpha, tempDoseGradBuffer, 1, dDoseGrad, 1));
 //	  addVec(dDoseGrad, tempDoseGradBuffer, csc.m);
-	} else if (iter.compare("maxDVHLoss") == 0) {
+	} else if (iter.compare("maxDVHLoss") != 0) {
 	  result += calDVHLoss(dose, tempDoseGradBuffer, dLoss, d1, csc.m, v1, 1);
 	  CUBLAS_SAFE_CALL(cublasSaxpy_v2(handle_, csc.m, &alpha, tempDoseGradBuffer, 1, dDoseGrad, 1));
 //	  addVec(dDoseGrad, tempDoseGradBuffer, csc.m);
-	} else if (iter.compare("lowerGEUDLoss") == 0) {
+	} else if (iter.compare("lowerGEUDLoss") != 0) {
 	  result += calgEUDLoss(dose, tempDoseGradBuffer, lowerGEUDTarget, a, csc.m, -1);
 	  CUBLAS_SAFE_CALL(cublasSaxpy_v2(handle_, csc.m, &alpha, tempDoseGradBuffer, 1, dDoseGrad, 1));
 //	  addVec(dDoseGrad, tempDoseGradBuffer, csc.m);
-	} else if (iter.compare("targetGEUDLoss") == 0) {
+	} else if (iter.compare("targetGEUDLoss") != 0) {
 	  result += calgEUDLoss(dose, tempDoseGradBuffer, GEUDTarget, a, csc.m, 0);
 	  CUBLAS_SAFE_CALL(cublasSaxpy_v2(handle_, csc.m, &alpha, tempDoseGradBuffer, 1, dDoseGrad, 1));
 //	  addVec(dDoseGrad, tempDoseGradBuffer, csc.m);
-	} else if (iter.compare("upperGEUDLoss") == 0) {
+	} else if (iter.compare("upperGEUDLoss") != 0) {
 	  result += calgEUDLoss(dose, tempDoseGradBuffer, upperGEUDTarget, a, csc.m, 1);
 	  CUBLAS_SAFE_CALL(cublasSaxpy_v2(handle_, csc.m, &alpha, tempDoseGradBuffer, 1, dDoseGrad, 1));
 //	  addVec(dDoseGrad, tempDoseGradBuffer, csc.m);
