@@ -1,4 +1,15 @@
 #include "csc.h"
+
+#define CUSPARSE_SAFE_CALL(call)                                                     \
+{                                                                                  \
+  const cusparseStatus_t stat = call;                                                \
+  if (stat != CUSPARSE_STATUS_SUCCESS) {                                             \
+    std::cout << "cuSparse Error: " << __FILE__ << ":" << __LINE__ << std::endl;     \
+    std::cout << "  Code: " << stat << std::endl;                                  \
+    exit(1);                                                                       \
+  }                                                                                \
+}
+
 CSC::CSC() {
   m = 0;
   n = 0;
@@ -13,17 +24,12 @@ CSC::CSC() {
   //init cusparse context
   checkCudaErrors(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
 
-  status = cusparseCreate(&handle);
-  assert(CUSPARSE_STATUS_SUCCESS == status);
+  CUSPARSE_SAFE_CALL(cusparseCreate(&handle));
+  CUSPARSE_SAFE_CALL(cusparseSetStream(handle, stream));
+  CUSPARSE_SAFE_CALL(cusparseCreateMatDescr(&descrC));
 
-  status = cusparseSetStream(handle, stream);
-  assert(CUSPARSE_STATUS_SUCCESS == status);
-
-  status = cusparseCreateMatDescr(&descrC);
-  assert(CUSPARSE_STATUS_SUCCESS == status);
-
-  cusparseSetMatIndexBase(descrC, CUSPARSE_INDEX_BASE_ZERO);
-  cusparseSetMatType(descrC, CUSPARSE_MATRIX_TYPE_GENERAL);
+  CUSPARSE_SAFE_CALL(cusparseSetMatIndexBase(descrC, CUSPARSE_INDEX_BASE_ZERO));
+  CUSPARSE_SAFE_CALL(cusparseSetMatType(descrC, CUSPARSE_MATRIX_TYPE_GENERAL));
 }
 
 void CSC::initFromFile(std::string nzdataFile, std::string indicesFile, std::string indptrFile, int nrow, int ncol) {
@@ -66,9 +72,9 @@ void CSC::initFromMemory(float *nzdata1, int *indices1, int *indptr1, int nrow, 
   assert(n > 0);
   assert(m * n >= nnz);
 
-  nzdata  = new float[nnz];
+  nzdata = new float[nnz];
   indices = new int[nnz];
-  indptr  = new int[n + 1];
+  indptr = new int[n + 1];
 
   memcpy(nzdata, nzdata1, sizeof(float) * nnz);
   memcpy(indices, indices1, sizeof(int) * nnz);
@@ -128,87 +134,83 @@ CSC::~CSC() {
   }
   cusparseDestroy(handle);
   cusparseDestroyMatDescr(descrC);
-  checkCudaErrors( cudaStreamDestroy(stream));
+  checkCudaErrors(cudaStreamDestroy(stream));
 }
 
 void CSC::csc2csr2bsr() {
-  checkCudaErrors(cudaMalloc((void **)&nzdata_d_,  sizeof(float) * nnz));
+  checkCudaErrors(cudaMalloc((void **)&nzdata_d_, sizeof(float) * nnz));
   checkCudaErrors(cudaMalloc((void **)&indices_d_, sizeof(int) * nnz));
-  checkCudaErrors(cudaMalloc((void **)&indptr_d_,  sizeof(int) * (m + 1)));
+  checkCudaErrors(cudaMalloc((void **)&indptr_d_, sizeof(int) * (m + 1)));
 
   size_t lworkInBytes = 0;
   char *d_work = NULL;
 
-  status = cusparseCsr2cscEx2_bufferSize(handle,
-										 n,
-										 m,
-										 nnz,
-										 nzdata_d,
-										 indptr_d,
-										 indices_d,
-										 nzdata_d_,
-										 indptr_d_,
-										 indices_d_,
-										 CUDA_R_32F,
-										 CUSPARSE_ACTION_NUMERIC,
-										 CUSPARSE_INDEX_BASE_ZERO,
-										 CUSPARSE_CSR2CSC_ALG1,
-										 &lworkInBytes);
+  CUSPARSE_SAFE_CALL(cusparseCsr2cscEx2_bufferSize(handle,
+												   n,
+												   m,
+												   nnz,
+												   nzdata_d,
+												   indptr_d,
+												   indices_d,
+												   nzdata_d_,
+												   indptr_d_,
+												   indices_d_,
+												   CUDA_R_32F,
+												   CUSPARSE_ACTION_NUMERIC,
+												   CUSPARSE_INDEX_BASE_ZERO,
+												   CUSPARSE_CSR2CSC_ALG1,
+												   &lworkInBytes));
 
-  assert(CUSPARSE_STATUS_SUCCESS == status);
   printf("lworkInBytes (csr2csc) = %lld \n", (long long)lworkInBytes);
   checkCudaErrors(cudaMalloc((void **)&d_work, lworkInBytes));
 
-  status = cusparseCsr2cscEx2(handle,
-							  n,
-							  m,
-							  nnz,
-							  nzdata_d,
-							  indptr_d,
-							  indices_d,
-							  nzdata_d_,
-							  indptr_d_,
-							  indices_d_,
-							  CUDA_R_32F,
-							  CUSPARSE_ACTION_NUMERIC,
-							  CUSPARSE_INDEX_BASE_ZERO,
-							  CUSPARSE_CSR2CSC_ALG1,
-							  d_work);
+  CUSPARSE_SAFE_CALL(cusparseCsr2cscEx2(handle,
+										n,
+										m,
+										nnz,
+										nzdata_d,
+										indptr_d,
+										indices_d,
+										nzdata_d_,
+										indptr_d_,
+										indices_d_,
+										CUDA_R_32F,
+										CUSPARSE_ACTION_NUMERIC,
+										CUSPARSE_INDEX_BASE_ZERO,
+										CUSPARSE_CSR2CSC_ALG1,
+										d_work));
 
-  assert(CUSPARSE_STATUS_SUCCESS == status);
   checkCudaErrors(cudaFree(d_work));
 
   //csr2bsr for forward
   int mb = (m + BLOCKDIM - 1) / BLOCKDIM;
   int nb = (n + BLOCKDIM - 1) / BLOCKDIM;
   checkCudaErrors(cudaMalloc((void **)&bsrRowPtrC_d_, sizeof(int) * (mb + 1)));
-  status = cusparseXcsr2bsrNnz(handle,
-							   CUSPARSE_DIRECTION_COLUMN,
-							   m,
-							   n,
-							   descrC,
-							   indptr_d_,
-							   indices_d_,
-							   BLOCKDIM,
-							   descrC,
-							   bsrRowPtrC_d_,
-							   &nnb);
-  assert(CUSPARSE_STATUS_SUCCESS == status);
+  CUSPARSE_SAFE_CALL(cusparseXcsr2bsrNnz(handle,
+										 CUSPARSE_DIRECTION_COLUMN,
+										 m,
+										 n,
+										 descrC,
+										 indptr_d_,
+										 indices_d_,
+										 BLOCKDIM,
+										 descrC,
+										 bsrRowPtrC_d_,
+										 &nnb);)
 
   //csr2bsr for backward
   checkCudaErrors(cudaMalloc((void **)&bsrRowPtrC_d, sizeof(int) * (nb + 1)));
-  status = cusparseXcsr2bsrNnz(handle,
-							   CUSPARSE_DIRECTION_COLUMN,
-							   n,
-							   m,
-							   descrC,
-							   indptr_d,
-							   indices_d,
-							   BLOCKDIM,
-							   descrC,
-							   bsrRowPtrC_d,
-							   &nnb);
-  assert(CUSPARSE_STATUS_SUCCESS == status);
+  CUSPARSE_SAFE_CALL(cusparseXcsr2bsrNnz(handle,
+										 CUSPARSE_DIRECTION_COLUMN,
+										 n,
+										 m,
+										 descrC,
+										 indptr_d,
+										 indices_d,
+										 BLOCKDIM,
+										 descrC,
+										 bsrRowPtrC_d,
+										 &nnb));
 
 //free csr data
   checkCudaErrors(cudaFree(indices_d));
@@ -223,44 +225,44 @@ void CSC::csc2csr2bsr() {
 void CSC::forward(float *weights_d) {
   float alpha = 1;
   float beta = 0;
-  int   mb = (m + BLOCKDIM - 1) / BLOCKDIM;
-  int   nb = (n + BLOCKDIM - 1) / BLOCKDIM;
-  cusparseSbsrmv(handle,
-				 CUSPARSE_DIRECTION_COLUMN,
-				 CUSPARSE_OPERATION_NON_TRANSPOSE,
-				 mb,
-				 nb,
-				 nnb,
-				 &alpha,
-				 descrC,
-				 bsrValC_d_,
-				 bsrRowPtrC_d_,
-				 bsrColIndC_d_,
-				 BLOCKDIM,
-				 weights_d,
-				 &beta,
-				 y_forward_d);
+  int mb = (m + BLOCKDIM - 1) / BLOCKDIM;
+  int nb = (n + BLOCKDIM - 1) / BLOCKDIM;
+  CUSPARSE_SAFE_CALL(cusparseSbsrmv(handle,
+									CUSPARSE_DIRECTION_COLUMN,
+									CUSPARSE_OPERATION_NON_TRANSPOSE,
+									mb,
+									nb,
+									nnb,
+									&alpha,
+									descrC,
+									bsrValC_d_,
+									bsrRowPtrC_d_,
+									bsrColIndC_d_,
+									BLOCKDIM,
+									weights_d,
+									&beta,
+									y_forward_d));
 }
 
 void CSC::backward(float *dose_d) {
   float alpha = 1;
   float beta = 0;
-  int   mb = (m + BLOCKDIM - 1) / BLOCKDIM;
-  int   nb = (n + BLOCKDIM - 1) / BLOCKDIM;
+  int mb = (m + BLOCKDIM - 1) / BLOCKDIM;
+  int nb = (n + BLOCKDIM - 1) / BLOCKDIM;
 
-  cusparseSbsrmv(handle,
-				 CUSPARSE_DIRECTION_COLUMN,
-				 CUSPARSE_OPERATION_NON_TRANSPOSE,
-				 nb,
-				 mb,
-				 nnb,
-				 &alpha,
-				 descrC,
-				 bsrValC_d,
-				 bsrRowPtrC_d,
-				 bsrColIndC_d,
-				 BLOCKDIM,
-				 dose_d,
-				 &beta,
-				 y_backward_d);
+  CUSPARSE_SAFE_CALL(cusparseSbsrmv(handle,
+									CUSPARSE_DIRECTION_COLUMN,
+									CUSPARSE_OPERATION_NON_TRANSPOSE,
+									nb,
+									mb,
+									nnb,
+									&alpha,
+									descrC,
+									bsrValC_d,
+									bsrRowPtrC_d,
+									bsrColIndC_d,
+									BLOCKDIM,
+									dose_d,
+									&beta,
+									y_backward_d));
 }
