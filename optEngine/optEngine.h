@@ -3,7 +3,8 @@
 
 #include "common.cuh"
 #include "csc.h"
-
+#include "fista.h"
+enum {FISTA, IPOPT};
 class optEngine()
 /*
 

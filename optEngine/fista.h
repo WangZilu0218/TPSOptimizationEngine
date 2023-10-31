@@ -37,6 +37,7 @@ class fista {
  private:
   const opts op;
   opts op0;
+  lossParams losp;
   CSC csc;
 
  private:
@@ -62,6 +63,7 @@ class fista {
   float lowerGEUDTarget;
   float GEUDTarget;
   float a;
+  float *d_value;
 
   float L;
   float t_old;

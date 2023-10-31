@@ -8,6 +8,7 @@
 #include "vector"
 #define BLOCKDIM 256
 #define GRIDDIM  128
+
 typedef struct {
   int    max_iter = 500;
   float  tol = 1e-8;
@@ -15,6 +16,19 @@ typedef struct {
   int    eta = 2;
   bool   pos = false;
   float  lambda = 0.01;
-  std::vector<std::string> lossName; //define loss name here
 } opts;
+
+typedef struct {
+  float minDoseValue;
+  float maxDoseValue;
+  float d1;
+  float v1;
+  float d2;
+  float v2;
+  float upperGEUDTarget;
+  float lowerGEUDTarget;
+  float GEUDTarget;
+  float a;
+  std::vector<std::string> lossName;
+} lossParams;
 #endif //OPTIMIZE_OPTENGINE_OPTIONS_H_

@@ -58,7 +58,6 @@ void CSC::initFromFile(std::string nzdataFile, std::string indicesFile, std::str
   fp.close();
 
   assert(m * n >= nnz);
-
   nnzDataFlag = true;
 }
 
@@ -138,9 +137,9 @@ CSC::~CSC() {
 }
 
 void CSC::csc2csr2bsr() {
-  checkCudaErrors(cudaMalloc((void **)&nzdata_d_, sizeof(float) * nnz));
-  checkCudaErrors(cudaMalloc((void **)&indices_d_, sizeof(int) * nnz));
-  checkCudaErrors(cudaMalloc((void **)&indptr_d_, sizeof(int) * (m + 1)));
+  checkCudaErrors(cudaMalloc((void **)&nzdata_d_,  sizeof(float) * nnz));
+  checkCudaErrors(cudaMalloc((void **)&indices_d_, sizeof(int)   * nnz));
+  checkCudaErrors(cudaMalloc((void **)&indptr_d_,  sizeof(int)   * (m + 1)));
 
   size_t lworkInBytes = 0;
   char *d_work = NULL;
@@ -224,9 +223,9 @@ void CSC::csc2csr2bsr() {
 
 void CSC::forward(float *weights_d) {
   float alpha = 1;
-  float beta = 0;
-  int mb = (m + BLOCKDIM - 1) / BLOCKDIM;
-  int nb = (n + BLOCKDIM - 1) / BLOCKDIM;
+  float beta  = 0;
+  int   mb    = (m + BLOCKDIM - 1) / BLOCKDIM;
+  int   nb    = (n + BLOCKDIM - 1) / BLOCKDIM;
   CUSPARSE_SAFE_CALL(cusparseSbsrmv(handle,
 									CUSPARSE_DIRECTION_COLUMN,
 									CUSPARSE_OPERATION_NON_TRANSPOSE,
@@ -246,9 +245,9 @@ void CSC::forward(float *weights_d) {
 
 void CSC::backward(float *dose_d) {
   float alpha = 1;
-  float beta = 0;
-  int mb = (m + BLOCKDIM - 1) / BLOCKDIM;
-  int nb = (n + BLOCKDIM - 1) / BLOCKDIM;
+  float beta  = 0;
+  int   mb    = (m + BLOCKDIM - 1) / BLOCKDIM;
+  int   nb    = (n + BLOCKDIM - 1) / BLOCKDIM;
 
   CUSPARSE_SAFE_CALL(cusparseSbsrmv(handle,
 									CUSPARSE_DIRECTION_COLUMN,

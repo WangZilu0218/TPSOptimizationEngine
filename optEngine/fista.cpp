@@ -20,16 +20,18 @@ fista::fista(const opts &op,
 			 const CSC &csc,
 			 float *pWeights,
 			 float *nzdata1,
-			 int *indices1,
-			 int *indptr1,
-			 int nrow,
-			 int ncol,
-			 int nz)
+			 int   *indices1,
+			 int   *indptr1,
+			 int   nrow,
+			 int   ncol,
+			 int   nz)
 	: op(op), csc(csc) {
 
   weights.resize(csc.n);
   memcpy(weights.data(), pWeights, sizeof(float) * csc.n);
   this->csc.initFromMemory(nzdata1, indices1, indptr1, nrow, ncol, nz);
+
+  this->csc.csc2csr2bsr();
 
   checkCudaErrors(cudaMalloc((void **)&dXOld, sizeof(float) * csc.n));
   checkCudaErrors(cudaMalloc((void **)&dXNew, sizeof(float) * csc.n));
@@ -58,7 +60,7 @@ float fista::cal_loss(float *dose) {
   checkCudaErrors(cudaMemset(dDoseGrad, 0, sizeof(float) * csc.m));
   float result = 0.0f;
   float alpha = 1.0f;
-  for (auto iter: op.lossName) {
+  for (auto iter: losp.lossName) {
 	if (iter.compare("minDoseLoss") != 0) {
 	  result += calDoseLoss(dose, tempDoseGradBuffer, dLoss, minDoseValue, csc.m, -1);
 	  CUBLAS_SAFE_CALL(cublasSaxpy_v2(handle_, csc.m, &alpha, tempDoseGradBuffer, 1, dDoseGrad, 1));
@@ -87,6 +89,9 @@ float fista::cal_loss(float *dose) {
 	  result += calgEUDLoss(dose, tempDoseGradBuffer, upperGEUDTarget, a, csc.m, 1);
 	  CUBLAS_SAFE_CALL(cublasSaxpy_v2(handle_, csc.m, &alpha, tempDoseGradBuffer, 1, dDoseGrad, 1));
 //	  addVec(dDoseGrad, tempDoseGradBuffer, csc.m);
+	} else if (iter.compare("uniformLoss") != 0) {
+	  result += calUniformDoseLoss(dose, tempDoseGradBuffer, dLoss, d_value, csc.m);
+	  CUBLAS_SAFE_CALL(cublasSaxpy_v2(handle_, csc.m, &alpha, tempDoseGradBuffer, 1, dDoseGrad, 1));
 	}
   }
   checkCudaErrors(cudaFree(tempDoseGradBuffer));
