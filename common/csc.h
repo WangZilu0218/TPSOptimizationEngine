@@ -4,7 +4,7 @@
 #include <iostream>
 #include <fstream>
 
-#include "common.cuh"
+//#include "common.cuh"
 #include "cusparse_v2.h"
 #define BLOCKDIM 256
 #define GRIDDIM  128

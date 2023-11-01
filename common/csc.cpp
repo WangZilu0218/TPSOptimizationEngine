@@ -1,5 +1,7 @@
 #include "csc.h"
-
+#include "cuda_runtime_api.h"
+#include "helper_cuda.h"
+#include "assert.h"
 #define CUSPARSE_SAFE_CALL(call)                                                     \
 {                                                                                  \
   const cusparseStatus_t stat = call;                                                \

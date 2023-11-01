@@ -17,20 +17,19 @@
 }
 
 fista::fista(const opts &op,
-			 const CSC &csc,
-			 float *pWeights,
+			 const lossParams &lp,
+			 float *pXOld,
+			 float *pYOld,
 			 float *nzdata1,
 			 int   *indices1,
 			 int   *indptr1,
 			 int   nrow,
 			 int   ncol,
 			 int   nz)
-	: op(op), csc(csc) {
+	: op(op), losp(lp) {
+  L = op.L0;
 
-  weights.resize(csc.n);
-  memcpy(weights.data(), pWeights, sizeof(float) * csc.n);
   this->csc.initFromMemory(nzdata1, indices1, indptr1, nrow, ncol, nz);
-
   this->csc.csc2csr2bsr();
 
   checkCudaErrors(cudaMalloc((void **)&dXOld, sizeof(float) * csc.n));
@@ -38,12 +37,13 @@ fista::fista(const opts &op,
   checkCudaErrors(cudaMalloc((void **)&dYOld, sizeof(float) * csc.n));
   checkCudaErrors(cudaMalloc((void **)&dYNew, sizeof(float) * csc.n));
 
-  checkCudaErrors(cudaMalloc((void **)&dDose, sizeof(float) * csc.m));
+  checkCudaErrors(cudaMalloc((void **)&dDose,     sizeof(float) * csc.m));
   checkCudaErrors(cudaMalloc((void **)&dDoseGrad, sizeof(float) * csc.m));
-  checkCudaErrors(cudaMalloc((void **)&dLoss, sizeof(float) * GRIDDIM));
+  //actually this is a temp buff used for accumulation
+  checkCudaErrors(cudaMalloc((void **)&dLoss,     sizeof(float) * GRIDDIM));
 
-  checkCudaErrors(cudaMemcpy(dXOld, pWeights, sizeof(float) * csc.n, cudaMemcpyHostToDevice));
-  checkCudaErrors(cudaMemcpy(dYOld, pWeights, sizeof(float) * csc.n, cudaMemcpyHostToDevice));
+  checkCudaErrors(cudaMemcpy(dXOld, pXOld, sizeof(float) * csc.n, cudaMemcpyHostToDevice));
+  checkCudaErrors(cudaMemcpy(dYOld, pYOld, sizeof(float) * csc.n, cudaMemcpyHostToDevice));
   CUBLAS_SAFE_CALL(cublasCreate_v2(&handle_));
 
 }
@@ -62,33 +62,26 @@ float fista::cal_loss(float *dose) {
   float alpha = 1.0f;
   for (auto iter: losp.lossName) {
 	if (iter.compare("minDoseLoss") != 0) {
-	  result += calDoseLoss(dose, tempDoseGradBuffer, dLoss, minDoseValue, csc.m, -1);
+	  result += calDoseLoss(dose, tempDoseGradBuffer, dLoss, losp.minDoseValue, csc.m, -1);
 	  CUBLAS_SAFE_CALL(cublasSaxpy_v2(handle_, csc.m, &alpha, tempDoseGradBuffer, 1, dDoseGrad, 1));
-//	  addVec(dDoseGrad, tempDoseGradBuffer, csc.m);
 	} else if (iter.compare("maxDoseLoss") != 0) {
-	  result += calDoseLoss(dose, tempDoseGradBuffer, dLoss, minDoseValue, csc.m, 1);
+	  result += calDoseLoss(dose, tempDoseGradBuffer, dLoss, losp.maxDoseValue, csc.m, 1);
 	  CUBLAS_SAFE_CALL(cublasSaxpy_v2(handle_, csc.m, &alpha, tempDoseGradBuffer, 1, dDoseGrad, 1));
-//	  addVec(dDoseGrad, tempDoseGradBuffer, csc.m);
 	} else if (iter.compare("minDVHLoss") != 0) {
-	  result += calDVHLoss(dose, tempDoseGradBuffer, dLoss, d1, csc.m, v1, -1);
+	  result += calDVHLoss(dose, tempDoseGradBuffer, dLoss, losp.d1, csc.m, losp.v1, -1);
 	  CUBLAS_SAFE_CALL(cublasSaxpy_v2(handle_, csc.m, &alpha, tempDoseGradBuffer, 1, dDoseGrad, 1));
-//	  addVec(dDoseGrad, tempDoseGradBuffer, csc.m);
 	} else if (iter.compare("maxDVHLoss") != 0) {
-	  result += calDVHLoss(dose, tempDoseGradBuffer, dLoss, d1, csc.m, v1, 1);
+	  result += calDVHLoss(dose, tempDoseGradBuffer, dLoss, losp.d2, csc.m, losp.v2, 1);
 	  CUBLAS_SAFE_CALL(cublasSaxpy_v2(handle_, csc.m, &alpha, tempDoseGradBuffer, 1, dDoseGrad, 1));
-//	  addVec(dDoseGrad, tempDoseGradBuffer, csc.m);
 	} else if (iter.compare("lowerGEUDLoss") != 0) {
-	  result += calgEUDLoss(dose, tempDoseGradBuffer, lowerGEUDTarget, a, csc.m, -1);
+	  result += calgEUDLoss(dose, tempDoseGradBuffer, losp.lowerGEUDTarget, losp.a, csc.m, -1);
 	  CUBLAS_SAFE_CALL(cublasSaxpy_v2(handle_, csc.m, &alpha, tempDoseGradBuffer, 1, dDoseGrad, 1));
-//	  addVec(dDoseGrad, tempDoseGradBuffer, csc.m);
 	} else if (iter.compare("targetGEUDLoss") != 0) {
-	  result += calgEUDLoss(dose, tempDoseGradBuffer, GEUDTarget, a, csc.m, 0);
+	  result += calgEUDLoss(dose, tempDoseGradBuffer, losp.GEUDTarget, losp.a, csc.m, 0);
 	  CUBLAS_SAFE_CALL(cublasSaxpy_v2(handle_, csc.m, &alpha, tempDoseGradBuffer, 1, dDoseGrad, 1));
-//	  addVec(dDoseGrad, tempDoseGradBuffer, csc.m);
 	} else if (iter.compare("upperGEUDLoss") != 0) {
-	  result += calgEUDLoss(dose, tempDoseGradBuffer, upperGEUDTarget, a, csc.m, 1);
+	  result += calgEUDLoss(dose, tempDoseGradBuffer, losp.upperGEUDTarget, losp.a, csc.m, 1);
 	  CUBLAS_SAFE_CALL(cublasSaxpy_v2(handle_, csc.m, &alpha, tempDoseGradBuffer, 1, dDoseGrad, 1));
-//	  addVec(dDoseGrad, tempDoseGradBuffer, csc.m);
 	} else if (iter.compare("uniformLoss") != 0) {
 	  result += calUniformDoseLoss(dose, tempDoseGradBuffer, dLoss, d_value, csc.m);
 	  CUBLAS_SAFE_CALL(cublasSaxpy_v2(handle_, csc.m, &alpha, tempDoseGradBuffer, 1, dDoseGrad, 1));

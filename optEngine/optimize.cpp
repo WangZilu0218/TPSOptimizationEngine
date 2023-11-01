@@ -4,23 +4,30 @@
 #include "pybind11/include/pybind11/pybind11.h"
 #include "pybind11/include/pybind11/numpy.h"
 #include "pybind11/include/pybind11/stl.h"
-#include "helper_cuda.h"
 #include "options.h"
-
+#include "fista.h"
+#include "cuda_runtime_api.h"
+//#include "cuda_runtime.h"
+#include "helper_cuda.h"
+#include "googletest/googletest/include/gtest/gtest.h"
 void optimizeStep(pybind11::array nzData,
 				  pybind11::array indices,
 				  pybind11::array indptr,
-				  pybind11::array weights,
+				  pybind11::array Xold,
+				  pybind11::array Yold,
 				  pybind11::list  lossName,
 				  pybind11::dict  optparams,
-				  pybind11::dict  lossparams) {
+				  pybind11::dict  lossparams,
+				  int m,
+				  int n) {
   auto h_nzData  = pybind11::cast<pybind11::array_t<float>>(nzData).request();
-  auto h_weights = pybind11::cast<pybind11::array_t<float>>(weights).request();
+  auto h_x_old   = pybind11::cast<pybind11::array_t<float>>(Xold).request();
+  auto h_y_old   = pybind11::cast<pybind11::array_t<float>>(Yold).request();
   auto h_indices = pybind11::cast<pybind11::array_t<int>>(indices).request();
   auto h_indptr  = pybind11::cast<pybind11::array_t<int>>(indptr).request();
   lossParams lp;
   opts op;
-  for (std::pair<pybind11::handle, pybind11::handle> item : lossparams) {
+  for (std::pair<pybind11::handle, pybind11::handle> item: lossparams) {
 	auto key = item.first.cast<std::string>();
 	auto value = item.second.cast<float>();
 	if (key.compare("min dose") != 0) {
@@ -64,8 +71,8 @@ void optimizeStep(pybind11::array nzData,
 	  break;
 	}
   }
-  for (std::pair<pybind11::handle, pybind11::handle> item : optparams) {
-	auto key   = item.first.cast<std::string>();
+  for (std::pair<pybind11::handle, pybind11::handle> item: optparams) {
+	auto key = item.first.cast<std::string>();
 	auto value = item.second.cast<float>();
 	if (key.compare("tolerance") != 0) {
 	  op.tol = value;
@@ -81,4 +88,18 @@ void optimizeStep(pybind11::array nzData,
 	}
   }
   lp.lossName = lossName.cast<std::vector<std::string>>();
+  fista fis(op,
+			lp,
+			(float *)h_x_old.ptr,
+			(float *)h_y_old.ptr,
+			(float *)h_nzData.ptr,
+			(int *)h_indices.ptr,
+			(int *)h_indptr.ptr,
+			m,
+			n,
+			h_nzData.size);
+  fis.step();
+  checkCudaErrors(cudaMemcpy(h_x_old.ptr, fis.dXOld, sizeof(float) * n, cudaMemcpyDeviceToHost));
+  checkCudaErrors(cudaMemcpy(h_y_old.ptr, fis.dYOld, sizeof(float) * n, cudaMemcpyDeviceToHost));
+  optparams["L0"] = fis.L;
 }

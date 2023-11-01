@@ -22,12 +22,12 @@ void absVec(float *p_v, int size);
 class fista {
  public:
   fista();
-  fista(const opts &, const CSC &, float *, float *, int *, int *, int, int, int);
+  fista(const opts &, const lossParams &, float *, float *, float *, int *, int *, int, int, int);
   ~fista();
  public:
-  void setMinDoseValue(float minDoseValue) {this->minDoseValue = minDoseValue;}
-  void setMaxDoseValue(float maxDoseValue) {this->maxDoseValue = maxDoseValue;}
- private:
+//  void setMinDoseValue(float minDoseValue) {this->minDoseValue = minDoseValue;}
+//  void setMaxDoseValue(float maxDoseValue) {this->maxDoseValue = maxDoseValue;}
+ public:
   float calculateQ(float *, float *, float, float);
   float calc_F(float *);
   float cal_loss(float *);
@@ -40,8 +40,8 @@ class fista {
   lossParams losp;
   CSC csc;
 
- private:
-  float *dWeights;
+ public:
+//  float *dWeights;
   float *dXOld;
   float *dXNew;
   float *dYOld;
@@ -53,24 +53,16 @@ class fista {
   float *dLoss;
 
  private:
-  float minDoseValue;
-  float maxDoseValue;
-  float d1;
-  float v1;
-  float d2;
-  float v2;
-  float upperGEUDTarget;
-  float lowerGEUDTarget;
-  float GEUDTarget;
-  float a;
   float *d_value;
+
+ public:
 
   float L;
   float t_old;
   int iter;
 
  public:
-  vector<float> weights;
+//  vector<float> weights;
   float loss;
  private:
   cublasHandle_t handle_;
