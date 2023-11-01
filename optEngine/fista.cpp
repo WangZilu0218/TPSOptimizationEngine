@@ -102,7 +102,7 @@ float fista::calculateQ(float *x, float *y, float L, float loss) {
   return temp;
 }
 
-bool fista::step() {
+float fista::step() {
   bool ifBreak = false;
   iter ++;
   float Lbar = L;
@@ -155,7 +155,7 @@ bool fista::step() {
   checkCudaErrors(cudaMemcpy(dXOld, dXNew, sizeof(float) * csc.n, cudaMemcpyDeviceToDevice));
   checkCudaErrors(cudaMemcpy(dYOld, dYNew, sizeof(float) * csc.n, cudaMemcpyDeviceToDevice));
   t_old = t_new;
-  return ifBreak;
+  return loss;
 }
 
 fista::~fista() {

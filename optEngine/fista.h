@@ -32,7 +32,7 @@ class fista {
   float calc_F(float *);
   float cal_loss(float *);
   void optimize();
-  bool step();
+  float step();
 
  private:
   const opts op;
