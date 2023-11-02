@@ -10,7 +10,7 @@
 //#include "cuda_runtime.h"
 #include "helper_cuda.h"
 #include "googletest/googletest/include/gtest/gtest.h"
-void optimizeStep(pybind11::array nzData,
+float optimizeStep(pybind11::array nzData,
 				  pybind11::array indices,
 				  pybind11::array indptr,
 				  pybind11::array Xold,
@@ -117,10 +117,11 @@ void optimizeStep(pybind11::array nzData,
 			m,
 			n,
 			h_nzData.size);
-  fis.step();
+  float loss = fis.step();
   checkCudaErrors(cudaMemcpy(h_x_old.ptr, fis.dXOld, sizeof(float) * n, cudaMemcpyDeviceToHost));
   checkCudaErrors(cudaMemcpy(h_y_old.ptr, fis.dYOld, sizeof(float) * n, cudaMemcpyDeviceToHost));
   optparams["L0"] = fis.L;
+  return loss;
 }
 
 PYBIND11_MODULE(opti, m) {
