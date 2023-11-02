@@ -13,12 +13,12 @@
 }
 
 CSC::CSC() {
-  m = 0;
-  n = 0;
-  nnz = 0;
-  nzdata = nullptr;
-  indices = nullptr;
-  indptr = nullptr;
+  m           = 0;
+  n           = 0;
+  nnz         = 0;
+  nzdata      = nullptr;
+  indices     = nullptr;
+  indptr      = nullptr;
 
   copyGPUFlag = false;
   nnzDataFlag = false;

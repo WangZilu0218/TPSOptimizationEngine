@@ -46,7 +46,6 @@ fista::fista(const opts &op,
   checkCudaErrors(cudaMemcpy(dYOld, pYOld,        sizeof(float) * csc.n, cudaMemcpyHostToDevice));
 
   CUBLAS_SAFE_CALL(cublasCreate_v2(&handle_));
-
 }
 
 float fista::calc_F(float *pX) {
