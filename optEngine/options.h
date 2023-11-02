@@ -12,8 +12,8 @@
 typedef struct {
   int    max_iter = 500;
   float  tol = 1e-8;
-  int    L0 = 1;
-  int    eta = 2;
+  float  L0 = 1;
+  float  eta = 2;
   bool   pos = false;
   float  lambda = 0.01;
 } opts;
@@ -30,5 +30,6 @@ typedef struct {
   float GEUDTarget;
   float a;
   std::vector<std::string> lossName;
+  float *p_dose;
 } lossParams;
 #endif //OPTIMIZE_OPTENGINE_OPTIONS_H_

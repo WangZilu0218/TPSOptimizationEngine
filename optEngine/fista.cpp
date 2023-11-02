@@ -32,18 +32,19 @@ fista::fista(const opts &op,
   this->csc.initFromMemory(nzdata1, indices1, indptr1, nrow, ncol, nz);
   this->csc.csc2csr2bsr();
 
-  checkCudaErrors(cudaMalloc((void **)&dXOld, sizeof(float) * csc.n));
-  checkCudaErrors(cudaMalloc((void **)&dXNew, sizeof(float) * csc.n));
-  checkCudaErrors(cudaMalloc((void **)&dYOld, sizeof(float) * csc.n));
-  checkCudaErrors(cudaMalloc((void **)&dYNew, sizeof(float) * csc.n));
+  checkCudaErrors(cudaMalloc((void **)&dXOld,     sizeof(float) * csc.n));
+  checkCudaErrors(cudaMalloc((void **)&dXNew,     sizeof(float) * csc.n));
+  checkCudaErrors(cudaMalloc((void **)&dYOld,     sizeof(float) * csc.n));
+  checkCudaErrors(cudaMalloc((void **)&dYNew,     sizeof(float) * csc.n));
 
   checkCudaErrors(cudaMalloc((void **)&dDose,     sizeof(float) * csc.m));
   checkCudaErrors(cudaMalloc((void **)&dDoseGrad, sizeof(float) * csc.m));
   //actually this is a temp buff used for accumulation
   checkCudaErrors(cudaMalloc((void **)&dLoss,     sizeof(float) * GRIDDIM));
 
-  checkCudaErrors(cudaMemcpy(dXOld, pXOld, sizeof(float) * csc.n, cudaMemcpyHostToDevice));
-  checkCudaErrors(cudaMemcpy(dYOld, pYOld, sizeof(float) * csc.n, cudaMemcpyHostToDevice));
+  checkCudaErrors(cudaMemcpy(dXOld, pXOld,        sizeof(float) * csc.n, cudaMemcpyHostToDevice));
+  checkCudaErrors(cudaMemcpy(dYOld, pYOld,        sizeof(float) * csc.n, cudaMemcpyHostToDevice));
+
   CUBLAS_SAFE_CALL(cublasCreate_v2(&handle_));
 
 }
@@ -59,7 +60,7 @@ float fista::cal_loss(float *dose) {
   //set dose gradients to zeros
   checkCudaErrors(cudaMemset(dDoseGrad, 0, sizeof(float) * csc.m));
   float result = 0.0f;
-  float alpha = 1.0f;
+  float alpha  = 1.0f;
   for (auto iter: losp.lossName) {
 	if (iter.compare("minDoseLoss") != 0) {
 	  result += calDoseLoss(dose, tempDoseGradBuffer, dLoss, losp.minDoseValue, csc.m, -1);
@@ -83,8 +84,11 @@ float fista::cal_loss(float *dose) {
 	  result += calgEUDLoss(dose, tempDoseGradBuffer, losp.upperGEUDTarget, losp.a, csc.m, 1);
 	  CUBLAS_SAFE_CALL(cublasSaxpy_v2(handle_, csc.m, &alpha, tempDoseGradBuffer, 1, dDoseGrad, 1));
 	} else if (iter.compare("uniformLoss") != 0) {
+	  checkCudaErrors(cudaMalloc((void **)&d_value, sizeof(float) * csc.m));
+	  checkCudaErrors(cudaMemcpy(d_value, losp.p_dose, sizeof(float) * csc.m, cudaMemcpyHostToDevice));
 	  result += calUniformDoseLoss(dose, tempDoseGradBuffer, dLoss, d_value, csc.m);
 	  CUBLAS_SAFE_CALL(cublasSaxpy_v2(handle_, csc.m, &alpha, tempDoseGradBuffer, 1, dDoseGrad, 1));
+	  checkCudaErrors(cudaFree(d_value));
 	}
   }
   checkCudaErrors(cudaFree(tempDoseGradBuffer));
@@ -164,5 +168,6 @@ fista::~fista() {
   checkCudaErrors(cudaFree(dYOld));
   checkCudaErrors(cudaFree(dYNew));
   checkCudaErrors(cudaFree(dLoss));
+
   CUBLAS_SAFE_CALL(cublasDestroy_v2(handle_));
 }

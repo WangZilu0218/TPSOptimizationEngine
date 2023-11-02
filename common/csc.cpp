@@ -85,11 +85,11 @@ void CSC::initFromMemory(float *nzdata1, int *indices1, int *indptr1, int nrow, 
 }
 
 void CSC::copyToGPU() {
-  checkCudaErrors(cudaMalloc((void **)&nzdata_d, sizeof(float) * nnz));
-  checkCudaErrors(cudaMalloc((void **)&indices_d, sizeof(int) * nnz));
-  checkCudaErrors(cudaMalloc((void **)&indptr_d, sizeof(int) * (n + 1)));
+  checkCudaErrors(cudaMalloc((void **)&nzdata_d,  sizeof(float) * nnz));
+  checkCudaErrors(cudaMalloc((void **)&indices_d, sizeof(int)   * nnz));
+  checkCudaErrors(cudaMalloc((void **)&indptr_d,  sizeof(int)   * (n + 1)));
 
-  checkCudaErrors(cudaMalloc((void **)&y_forward_d, sizeof(float) * m));
+  checkCudaErrors(cudaMalloc((void **)&y_forward_d,  sizeof(float) * m));
   checkCudaErrors(cudaMalloc((void **)&y_backward_d, sizeof(float) * n));
 
   checkCudaErrors(cudaMemcpy(nzdata_d, nzdata, sizeof(float) * nnz, cudaMemcpyHostToDevice));
@@ -144,7 +144,7 @@ void CSC::csc2csr2bsr() {
   checkCudaErrors(cudaMalloc((void **)&indptr_d_,  sizeof(int)   * (m + 1)));
 
   size_t lworkInBytes = 0;
-  char *d_work = NULL;
+  char   *d_work = NULL;
 
   CUSPARSE_SAFE_CALL(cusparseCsr2cscEx2_bufferSize(handle,
 												   n,
