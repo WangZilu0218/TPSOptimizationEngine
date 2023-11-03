@@ -4,48 +4,48 @@
 #include "pybind11/include/pybind11/pybind11.h"
 #include "pybind11/include/pybind11/numpy.h"
 #include "pybind11/include/pybind11/stl.h"
-#include "options.h"
-#include "fista.h"
+#include "optEngine/options.h"
+#include "optEngine/fista.h"
 #include "cuda_runtime_api.h"
 //#include "cuda_runtime.h"
 #include "helper_cuda.h"
 #include "googletest/googletest/include/gtest/gtest.h"
 float optimizeStep(pybind11::array nzData,
-				  pybind11::array indices,
-				  pybind11::array indptr,
-				  pybind11::array Xold,
-				  pybind11::array Yold,
-				  pybind11::list  lossName,
-				  pybind11::dict  optparams,
-				  pybind11::dict  lossparams,
-				  int m,
-				  int n) {
-  auto h_nzData  = pybind11::cast<pybind11::array_t<float>>(nzData).request();
-  auto h_x_old   = pybind11::cast<pybind11::array_t<float>>(Xold).request();
-  auto h_y_old   = pybind11::cast<pybind11::array_t<float>>(Yold).request();
+				   pybind11::array indices,
+				   pybind11::array indptr,
+				   pybind11::array Xold,
+				   pybind11::array Yold,
+				   pybind11::list  lossName,
+				   pybind11::dict  optparams,
+				   pybind11::dict  lossparams,
+				   int m,
+				   int n) {
+  auto h_nzData = pybind11::cast<pybind11::array_t<float>>(nzData).request();
+  auto h_x_old = pybind11::cast<pybind11::array_t<float>>(Xold).request();
+  auto h_y_old = pybind11::cast<pybind11::array_t<float>>(Yold).request();
   auto h_indices = pybind11::cast<pybind11::array_t<int>>(indices).request();
-  auto h_indptr  = pybind11::cast<pybind11::array_t<int>>(indptr).request();
+  auto h_indptr = pybind11::cast<pybind11::array_t<int>>(indptr).request();
   lossParams lp;
   opts op;
-  lp.minDoseValue    = pybind11::cast<float>(lossparams["min dose"]);
-  lp.maxDoseValue    = pybind11::cast<float>(lossparams["max dose"]);
-  lp.d1              = pybind11::cast<float>(lossparams["d1"]);
-  lp.d2              = pybind11::cast<float>(lossparams["d2"]);
-  lp.v1              = pybind11::cast<float>(lossparams["v1"]);
-  lp.v2              = pybind11::cast<float>(lossparams["v2"]);
+  lp.minDoseValue = pybind11::cast<float>(lossparams["min dose"]);
+  lp.maxDoseValue = pybind11::cast<float>(lossparams["max dose"]);
+  lp.d1 = pybind11::cast<float>(lossparams["d1"]);
+  lp.d2 = pybind11::cast<float>(lossparams["d2"]);
+  lp.v1 = pybind11::cast<float>(lossparams["v1"]);
+  lp.v2 = pybind11::cast<float>(lossparams["v2"]);
   lp.upperGEUDTarget = pybind11::cast<float>(lossparams["upper gEUD"]);
   lp.lowerGEUDTarget = pybind11::cast<float>(lossparams["lower gEUD"]);
-  lp.GEUDTarget      = pybind11::cast<float>(lossparams["gEUD target"]);
-  lp.a               = pybind11::cast<float>(lossparams["a"]);
-  auto h_dose_value  = pybind11::cast<pybind11::array_t<float>>(lossparams["dose value"]);
-  lp.p_dose          = (float *)h_dose_value.ptr();
-  lp.lossName        = lossName.cast<std::vector<std::string>>();
+  lp.GEUDTarget = pybind11::cast<float>(lossparams["gEUD target"]);
+  lp.a = pybind11::cast<float>(lossparams["a"]);
+  auto h_dose_value = pybind11::cast<pybind11::array_t<float>>(lossparams["dose value"]);
+  lp.p_dose = (float *)h_dose_value.ptr();
+  lp.lossName = lossName.cast<std::vector<std::string>>();
 
-  op.tol             = pybind11::cast<float>(optparams["tolerance"]);
-  op.L0              = pybind11::cast<float>(optparams["L0"]);
-  op.lambda          = pybind11::cast<float>(optparams["lambda"]);
-  op.eta             = pybind11::cast<float>(optparams["eta"]);
-  op.pos             = pybind11::cast<bool>(optparams["pos"]);
+  op.tol = pybind11::cast<float>(optparams["tolerance"]);
+  op.L0 = pybind11::cast<float>(optparams["L0"]);
+  op.lambda = pybind11::cast<float>(optparams["lambda"]);
+  op.eta = pybind11::cast<float>(optparams["eta"]);
+  op.pos = pybind11::cast<bool>(optparams["pos"]);
 //  for (std::pair<pybind11::handle, pybind11::handle> item: lossparams) {
 //	auto key = item.first.cast<std::string>();
 //	auto value = item.second.cast<float>();
